@@ -1,0 +1,9 @@
+{
+  "name": "Control de Ruta",
+  "short_name": "Ruta",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "description": "Web-app para control de rutas",
+  "icons": []
+}
