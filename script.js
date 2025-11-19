@@ -1,9 +1,19 @@
+// --------------------------------------------------
+// VARIABLES GLOBALES
+// --------------------------------------------------
 let comprobantes = [];
 let choferNombre = "";
 let fechaRuta = "";
 
-// -------------------- POPUP INICIAL -------------------- //
+// Anti-duplicado
+let codigosEscaneados = new Set();
 
+// BarcodeDetector disponible?
+const barcodeSupported = ('BarcodeDetector' in window);
+
+// --------------------------------------------------
+// POPUP INICIAL
+// --------------------------------------------------
 document.getElementById("btnIniciarRuta").onclick = () => {
     const nombre = document.getElementById("inputChofer").value.trim();
     const fecha = document.getElementById("inputFecha").value;
@@ -19,54 +29,107 @@ document.getElementById("btnIniciarRuta").onclick = () => {
     document.getElementById("popupInicio").style.display = "none";
 };
 
-// -------------------- OCR SCAN -------------------- //
-
-document.getElementById("scanBtn").onclick = () => {
-    document.getElementById("imageInput").click();
-};
-
-document.getElementById("imageInput").addEventListener("change", async (e) => {
-    const files = e.target.files;
-
-    for (let file of files) {
-        const image = URL.createObjectURL(file);
-
-        const result = await Tesseract.recognize(image, "spa", {
-            logger: m => console.log(m)
-        });
-
-        procesarOCR(result.data.text);
-    }
-
-    renderComprobantes();
-});
-
-function procesarOCR(texto) {
-    const lineas = texto.split("\n").map(l => l.trim()).filter(Boolean);
-
-    let tipo = "";
-    let numero = "";
-
-    lineas.forEach(line => {
-        if (line.toUpperCase().startsWith("VENTAS")) tipo = line;
-        if (/^\d{6,}$/.test(line)) numero = line;
-    });
-
-    if (tipo && numero) {
-        comprobantes.push({
-            tipo,
-            numero,
-            estado: "",
-            observacion: ""
-        });
-    }
+// --------------------------------------------------
+// CLASIFICACIÓN AUTOMÁTICA (ESTILO MERCADO LIBRE)
+// --------------------------------------------------
+function detectarTipo(codigo) {
+    if (codigo.length >= 10) return "VENTAS ML FLEX";
+    if (codigo.length === 7 || codigo.length === 8) return "VENTAS ML MOTO"; 
+    return "DESCONOCIDO";
 }
 
-// -------------------- RENDER -------------------- //
+// --------------------------------------------------
+// ESCANEO CONTINUO
+// --------------------------------------------------
+let videoStream;
+let scanning = false;
 
+document.getElementById("scanBtn").onclick = iniciarScanner;
+
+async function iniciarScanner() {
+
+    if (!barcodeSupported) {
+        alert("Tu navegador no soporta BarcodeDetector. Probá con Chrome o Android.");
+        return;
+    }
+
+    scanning = true;
+
+    const video = document.createElement("video");
+    video.setAttribute("autoplay", true);
+    video.setAttribute("muted", true);
+    video.setAttribute("playsinline", true);
+    video.style.width = "100%";
+
+    document.getElementById("listaComprobantes").prepend(video);
+
+    videoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }
+    });
+
+    video.srcObject = videoStream;
+
+    const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'code_39'] });
+
+    // Loop continuo
+    async function scanLoop() {
+        if (!scanning) return;
+
+        try {
+            const barcodes = await detector.detect(video);
+
+            for (const barcode of barcodes) {
+                const codigo = barcode.rawValue.trim();
+
+                // Anti duplicados
+                if (!codigosEscaneados.has(codigo)) {
+                    codigosEscaneados.add(codigo);
+                    agregarComprobante(codigo);
+
+                    // beep
+                    const audio = new Audio(
+                        "https://actions.google.com/sounds/v1/cartoon/pop.ogg"
+                    );
+                    audio.volume = 0.3;
+                    audio.play();
+                }
+            }
+        } catch (e) {
+            console.log("Error detectando:", e);
+        }
+
+        requestAnimationFrame(scanLoop);
+    }
+
+    scanLoop();
+}
+
+// --------------------------------------------------
+// AGREGAR COMPROBANTE AUTOMÁTICAMENTE
+// --------------------------------------------------
+function agregarComprobante(codigo) {
+
+    const tipo = detectarTipo(codigo);
+
+    comprobantes.push({
+        numero: codigo,
+        tipo: tipo,
+        estado: "",
+        observacion: ""
+    });
+
+    renderComprobantes();
+}
+
+// --------------------------------------------------
+// RENDER LISTADO
+// --------------------------------------------------
 function renderComprobantes() {
     const cont = document.getElementById("listaComprobantes");
-    cont.innerHTML = "";
+
+    // Borramos todos los elementos EXCEPTO el video (si existe)
+    const children = Array.from(cont.children).filter(el => el.tagName !== "VIDEO");
+    children.forEach(el => el.remove());
 
     comprobantes.forEach((c, index) => {
         const div = document.createElement("div");
@@ -88,6 +151,9 @@ function renderComprobantes() {
     });
 }
 
+// --------------------------------------------------
+// SETEAR ESTADO
+// --------------------------------------------------
 function setEstado(i, estado) {
     comprobantes[i].estado = estado;
 
@@ -99,9 +165,16 @@ function setEstado(i, estado) {
     renderComprobantes();
 }
 
-// -------------------- GENERAR QR -------------------- //
-
+// --------------------------------------------------
+// GENERAR QR
+// --------------------------------------------------
 document.getElementById("generarQR").onclick = () => {
+
+    scanning = false;
+    if (videoStream) {
+        videoStream.getTracks().forEach(t => t.stop());
+    }
+
     const json = {
         fecha: fechaRuta,
         chofer: choferNombre,
@@ -120,7 +193,9 @@ document.getElementById("generarQR").onclick = () => {
     document.getElementById("qrModal").style.display = "block";
 };
 
+// --------------------------------------------------
 // DESCARGAR QR
+// --------------------------------------------------
 document.getElementById("descargarQR").onclick = () => {
     const canvas = document.querySelector("#qr canvas");
     if (!canvas) return;
@@ -132,10 +207,18 @@ document.getElementById("descargarQR").onclick = () => {
     a.click();
 };
 
+// --------------------------------------------------
+// CERRAR MODAL Y LIMPIAR DATOS
+// --------------------------------------------------
 function cerrarQR() {
+
     document.getElementById("qrModal").style.display = "none";
 
-    // limpiar datos
+    // Limpiar todo para nueva ruta
     comprobantes = [];
+    codigosEscaneados.clear();
+
     renderComprobantes();
+
+    // Reiniciar todo menos datos del chofer
 }
