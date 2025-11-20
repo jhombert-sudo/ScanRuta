@@ -10,11 +10,11 @@
     <!-- Librería QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- ZXING (lector código de barras real) -->
+    <!-- ZXING (lector código de barras real) - FIX iPHONE -->
     <script type="module">
-        import * as ZXingBrowser from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest";
+        import * as ZXingBrowser from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
 
-        // Lo expongo al window para que script.js pueda usarlo
+        // Exponer el módulo al window
         window.ZXingBrowser = ZXingBrowser;
     </script>
 
@@ -43,16 +43,13 @@
     <header>
         <h1>Control de Ruta</h1>
 
-        <!-- Botón para iniciar cámara -->
         <button id="scanBtn">📷 Escanear códigos</button>
 
-        <!-- Contador -->
         <div id="contador" class="contador">Escaneados: 0</div>
     </header>
 
     <section id="comprobantesContainer">
 
-        <!-- BOTONES -->
         <div id="accionesEscaneo" class="acciones-container" style="display:none;">
             <button id="btnFinalizarEscaneo" class="btn-finalizar">⛔ Finalizar escaneo</button>
             <button id="btnAgregarMas" class="btn-agregar">➕ Agregar comprobantes</button>
@@ -60,7 +57,6 @@
 
         <h2>Comprobantes procesados</h2>
 
-        <!-- Cámara + Lista -->
         <div id="listaComprobantes"></div>
 
     </section>
@@ -85,7 +81,6 @@
         <img id="visorImg" class="visor-img" src="">
     </div>
 
-    <!-- SCRIPT PRINCIPAL -->
     <script src="script.js"></script>
 
 </body>
