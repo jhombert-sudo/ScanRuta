@@ -8,15 +8,19 @@ let fechaRuta = "";
 let isScannerActive = false;
 let cooldown = false;
 
-let historialCodigos = []; // Para duplicados
+let historialCodigos = [];
 
 let codeReader = null;
 let videoElement = null;
 
+
+// --------------------------------------------------
 // OCR CONFIG
+// --------------------------------------------------
 const OCR_CONFIG = {
     lang: "spa",
-    tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 -.,/#"
+    tessedit_char_whitelist:
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 -.,/#"
 };
 
 
@@ -27,8 +31,7 @@ document.getElementById("btnIniciarRuta").onclick = () => {
     const nombre = document.getElementById("inputChofer").value.trim();
     const fecha = document.getElementById("inputFecha").value;
 
-    if (!nombre || !fecha)
-        return alert("Completá nombre y fecha.");
+    if (!nombre || !fecha) return alert("Completá nombre y fecha.");
 
     choferNombre = nombre;
     fechaRuta = fecha;
@@ -38,7 +41,7 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 
 
 // --------------------------------------------------
-// DETECTAR TIPO ML
+// DETECTAR TIPO DE ENVÍO ML
 // --------------------------------------------------
 function detectarTipo(codigo) {
     if (codigo.length >= 10) return "VENTAS ML FLEX";
@@ -48,9 +51,10 @@ function detectarTipo(codigo) {
 
 
 // --------------------------------------------------
-// INICIAR ESCANEO (FIX iPHONE)
+// BOTÓN INICIAR ESCANEO
 // --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
+
 
 async function iniciarScanner() {
 
@@ -61,7 +65,7 @@ async function iniciarScanner() {
 
     const cont = document.getElementById("listaComprobantes");
 
-    // Contenedor cámara
+    // Crear contenedor de cámara
     let camara = document.createElement("div");
     camara.id = "cameraPreview";
     camara.className = "camara-scan";
@@ -72,51 +76,49 @@ async function iniciarScanner() {
 
     cont.prepend(camara);
 
-    // VIDEO
+    // Crear video
     videoElement = document.createElement("video");
     videoElement.setAttribute("autoplay", true);
-    videoElement.setAttribute("playsinline", true); // Obligatorio iPhone
-    videoElement.setAttribute("muted", true);       // Obligatorio Safari
+    videoElement.setAttribute("playsinline", true);
+    videoElement.setAttribute("muted", true);
     videoElement.style.width = "100%";
 
     camara.appendChild(videoElement);
 
     // ZXING
-    const { BrowserMultiFormatReader } = ZXingBrowser;
+    const { BrowserMultiFormatReader, BrowserCodeReader } = window.ZXingBrowser;
+
     codeReader = new BrowserMultiFormatReader();
 
     try {
-        const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+        const devices = await BrowserCodeReader.listVideoInputDevices();
+        if (!devices.length) throw new Error("No se detectó cámara.");
+
         const camaraTrasera = devices[devices.length - 1].deviceId;
 
         await codeReader.decodeFromVideoDevice(
             camaraTrasera,
             videoElement,
             async (result, err) => {
-
-                if (result) {
-                    procesarDeteccion(result.text);
-                }
+                if (result) procesarDeteccion(result.text);
             }
         );
-
     } catch (err) {
-        console.error(err);
-        alert("No se pudo activar la cámara.");
+        console.error("Error al iniciar cámara:", err);
+        alert("No se pudo activar la cámara. Probá cerrar y abrir la página.");
     }
 }
 
 
-
 // --------------------------------------------------
-// PROCESAR DETECCIÓN
+// PROCESAR DETECCIÓN DE CÓDIGO
 // --------------------------------------------------
 async function procesarDeteccion(codigo) {
 
     if (cooldown) return;
 
     cooldown = true;
-    setTimeout(() => cooldown = false, 800);
+    setTimeout(() => (cooldown = false), 900);
 
     triggerScanEffect(codigo);
 
@@ -129,9 +131,8 @@ async function procesarDeteccion(codigo) {
 }
 
 
-
 // --------------------------------------------------
-// CAPTURA FRAME → MINIATURA
+// CAPTURA FRAME — MINIATURA
 // --------------------------------------------------
 function capturarFrame() {
     if (!videoElement) return "";
@@ -145,7 +146,6 @@ function capturarFrame() {
 
     return canvas.toDataURL("image/jpeg");
 }
-
 
 
 // --------------------------------------------------
@@ -164,13 +164,12 @@ async function extraerOCR(imgBase64) {
 }
 
 function parseDireccion(texto) {
-
     if (!texto) return "";
 
     let lineas = texto
         .split("\n")
-        .map(t => t.trim())
-        .filter(t => t.length > 3);
+        .map(l => l.trim())
+        .filter(l => l.length > 3);
 
     const direccion = lineas.find(l => /\d/.test(l) && /[A-Za-z]/.test(l)) || "";
     const localidad = lineas.find(l =>
@@ -183,14 +182,13 @@ function parseDireccion(texto) {
 }
 
 
-
 // --------------------------------------------------
-// EFECTOS DE ESCANEO
+// EFECTOS — Vibración + iluminación
 // --------------------------------------------------
 function triggerScanEffect(codigo) {
-
     const cam = document.getElementById("cameraPreview");
-    let duplicado = historialCodigos.includes(codigo);
+
+    const duplicado = historialCodigos.includes(codigo);
 
     navigator.vibrate?.(duplicado ? 300 : 120);
 
@@ -202,7 +200,6 @@ function triggerScanEffect(codigo) {
 }
 
 function mostrarMensajeFlotante(texto) {
-
     const msg = document.createElement("div");
     msg.className = "mensaje-duplicado";
     msg.innerText = texto;
@@ -214,12 +211,10 @@ function mostrarMensajeFlotante(texto) {
 }
 
 
-
 // --------------------------------------------------
 // AGREGAR COMPROBANTE
 // --------------------------------------------------
 function agregarComprobante(codigo, miniatura, direccion) {
-
     const duplicado = historialCodigos.includes(codigo);
     historialCodigos.push(codigo);
 
@@ -241,7 +236,6 @@ function agregarComprobante(codigo, miniatura, direccion) {
 }
 
 
-
 // --------------------------------------------------
 // CONTADOR
 // --------------------------------------------------
@@ -251,48 +245,45 @@ function actualizarContador() {
 }
 
 
-
 // --------------------------------------------------
 // RENDER LISTA
 // --------------------------------------------------
 function renderComprobantes() {
-
     const cont = document.getElementById("listaComprobantes");
     const cam = document.getElementById("cameraPreview");
 
     cont.innerHTML = "";
-
     if (cam) cont.prepend(cam);
 
     comprobantes.forEach((c, index) => {
+        const duplicadoTag = c.duplicado
+            ? `<span class="duplicado-tag">DUPLICADO</span>`
+            : "";
 
-        const duplicadoTag = c.duplicado ? `<span class="duplicado-tag">DUPLICADO</span>` : "";
-        const domicilioTag = c.mismoDomicilio ? `<span class="domicilio-tag">MISMO DOMICILIO – SE PAGA 1</span>` : "";
+        const domicilioTag = c.mismoDomicilio
+            ? `<span class="domicilio-tag">MISMO DOMICILIO – SE PAGA 1</span>`
+            : "";
 
-        const botones = c.estado === "" ?
-            `
-            <div class="estado-btns">
-                <button class="btn-entregado" onclick="setEstado(${index}, 'ENTREGADO')">Entregado</button>
-                <button class="btn-ausente" onclick="setEstado(${index}, 'AUSENTE')">Ausente</button>
-                <button class="btn-cancelado" onclick="setEstado(${index}, 'CANCELADO')">Cancelado</button>
-                <button class="btn-demorado" onclick="setEstado(${index}, 'DEMORADO')">Demorado</button>
-            </div>
-            `
-            :
-            `
-            <div class="estado-btns">
-                <button class="btn-estado-activo">${c.estado}</button>
-                <button class="btn-editar" onclick="editarEstado(${index})">Editar</button>
-            </div>
-            `;
+        const botones =
+            c.estado === ""
+                ? `
+                <div class="estado-btns">
+                    <button class="btn-entregado" onclick="setEstado(${index}, 'ENTREGADO')">Entregado</button>
+                    <button class="btn-ausente" onclick="setEstado(${index}, 'AUSENTE')">Ausente</button>
+                    <button class="btn-cancelado" onclick="setEstado(${index}, 'CANCELADO')">Cancelado</button>
+                    <button class="btn-demorado" onclick="setEstado(${index}, 'DEMORADO')">Demorado</button>
+                </div>`
+                : `
+                <div class="estado-btns">
+                    <button class="btn-estado-activo">${c.estado}</button>
+                    <button class="btn-editar" onclick="editarEstado(${index})">Editar</button>
+                </div>`;
 
         const box = document.createElement("div");
         box.className = "comprobante fadeIn";
         box.innerHTML = `
             <div class="comp-header">
-
                 <img src="${c.miniatura}" class="miniatura" onclick="verMiniatura('${c.miniatura}')">
-
                 <div class="info">
                     <strong>${c.numero}</strong>
                     <small>${c.tipo}</small>
@@ -300,16 +291,10 @@ function renderComprobantes() {
                     ${duplicadoTag}
                     ${domicilioTag}
                 </div>
-
                 <button class="btn-eliminar" onclick="eliminarComprobante(${index})">🗑️</button>
-
             </div>
-
             ${botones}
-
-            <textarea
-                id="obs_${index}"
-                placeholder="Observación..."
+            <textarea id="obs_${index}" placeholder="Observación..."
                 style="display:${c.estado === 'ENTREGADO' || c.estado === '' ? 'none' : 'block'}"
             >${c.observacion}</textarea>
         `;
@@ -319,9 +304,8 @@ function renderComprobantes() {
 }
 
 
-
 // --------------------------------------------------
-// MINIATURA → MODAL
+// MINIATURA MODAL
 // --------------------------------------------------
 function verMiniatura(img) {
     document.getElementById("visorModal").style.display = "flex";
@@ -329,8 +313,7 @@ function verMiniatura(img) {
 }
 
 document.getElementById("cerrarVisor").onclick = () =>
-    document.getElementById("visorModal").style.display = "none";
-
+    (document.getElementById("visorModal").style.display = "none");
 
 
 // --------------------------------------------------
@@ -354,29 +337,28 @@ function eliminarComprobante(i) {
 }
 
 
-
 // --------------------------------------------------
-// BOTONES FLUJO
+// BOTONES DE FLUJO
 // --------------------------------------------------
 document.getElementById("btnFinalizarEscaneo").onclick = detenerCamara;
 document.getElementById("btnAgregarMas").onclick = iniciarScanner;
 
 
-
 // --------------------------------------------------
-// DETENER CÁMARA (FIX iPHONE)
+// DETENER CAMARA
 // --------------------------------------------------
 function detenerCamara() {
     if (codeReader) {
-        try { codeReader.reset(); } catch {}
+        try {
+            codeReader.reset();
+        } catch {}
     }
 
     isScannerActive = false;
 
-    const camara = document.getElementById("cameraPreview");
-    if (camara) camara.remove();
+    const cam = document.getElementById("cameraPreview");
+    if (cam) cam.remove();
 }
-
 
 
 // --------------------------------------------------
@@ -414,8 +396,10 @@ document.getElementById("descargarQR").onclick = () => {
 
 function cerrarQR() {
     document.getElementById("qrModal").style.display = "none";
+
     comprobantes = [];
     historialCodigos = [];
+
     actualizarContador();
     renderComprobantes();
 }
