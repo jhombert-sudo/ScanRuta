@@ -7,26 +7,27 @@
 
     <link rel="stylesheet" href="style.css">
 
-    <!-- Librería QR -->
+    <!-- QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- ZXing (compatible con Safari/iPhone) -->
-    <script src="https://unpkg.com/@zxing/browser@latest"></script>
+    <!-- ZXING – versión COMPATIBLE con iPhone (0.20.0 UMD) -->
+    <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 
-    <!-- Tesseract (OCR dirección) -->
+    <!-- OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <link rel="manifest" href="manifest.json">
 </head>
+
 <body>
 
-    <!-- POPUP INICIAL -->
+    <!-- POPUP -->
     <div id="popupInicio" class="popup">
         <div class="popup-box">
             <h2>🚚 Identificación del Chofer</h2>
 
             <label>Nombre del chofer:</label>
-            <input type="text" id="inputChofer" placeholder="Ej: Gabriel Leguizamón">
+            <input type="text" id="inputChofer">
 
             <label>Fecha de ruta:</label>
             <input type="date" id="inputFecha">
@@ -37,9 +38,7 @@
 
     <header>
         <h1>Control de Ruta</h1>
-
         <button id="scanBtn">📷 Escanear códigos</button>
-
         <div id="contador" class="contador">Escaneados: 0</div>
     </header>
 
@@ -51,7 +50,6 @@
         </div>
 
         <h2>Comprobantes procesados</h2>
-
         <div id="listaComprobantes"></div>
 
     </section>
@@ -61,7 +59,7 @@
         <button id="descargarQR">DESCARGAR QR</button>
     </footer>
 
-    <!-- MODAL QR -->
+    <!-- QR modal -->
     <div id="qrModal" class="modal">
         <div class="modal-content">
             <h3>QR generado</h3>
@@ -70,13 +68,12 @@
         </div>
     </div>
 
-    <!-- MODAL MINIATURA -->
+    <!-- Miniatura -->
     <div id="visorModal" class="visor-modal" style="display:none;">
         <span id="cerrarVisor" class="cerrar-visor">✖</span>
-        <img id="visorImg" class="visor-img" src="">
+        <img id="visorImg" class="visor-img">
     </div>
 
     <script src="script.js"></script>
-
 </body>
 </html>
