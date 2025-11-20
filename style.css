@@ -95,6 +95,38 @@ header h1 {
 }
 
 /* -----------------------------------------------
+   BOTONES FLUJO A
+------------------------------------------------ */
+.acciones-container {
+    width: 90%;
+    margin: 15px auto 5px auto;
+    display: flex;
+    gap: 10px;
+}
+
+.btn-finalizar {
+    flex: 1;
+    background: #ff4444;
+    color: #fff;
+    padding: 12px;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.btn-agregar {
+    flex: 1;
+    background: #22aa22;
+    color: #fff;
+    padding: 12px;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* -----------------------------------------------
    LISTA DE COMPROBANTES
 ------------------------------------------------ */
 #listaComprobantes {
@@ -120,10 +152,34 @@ header h1 {
    CÁMARA
 ------------------------------------------------ */
 #cameraPreview {
+    position: relative;
     border-radius: 12px;
     overflow: hidden;
     margin-bottom: 10px;
     transition: box-shadow 0.25s;
+    height: 260px;
+    background: #000;
+}
+
+/* Cuadro guía */
+.scanner-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 80%;
+    height: 80px;
+    transform: translate(-50%, -50%);
+    border: 3px solid rgba(0,255,0,0.8);
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,255,0,0.6);
+    animation: pulseFrame 1.4s infinite;
+}
+
+/* Animación cuadro guía */
+@keyframes pulseFrame {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.05); }
+    100%{ transform: translate(-50%, -50%) scale(1); }
 }
 
 /* Escaneo correcto → borde verde */
