@@ -24,11 +24,11 @@ const OCR_CONFIG = {
 // POPUP INICIAL
 // --------------------------------------------------
 document.getElementById("btnIniciarRuta").onclick = () => {
-
     const nombre = document.getElementById("inputChofer").value.trim();
     const fecha = document.getElementById("inputFecha").value;
 
-    if (!nombre || !fecha) return alert("Completá nombre y fecha.");
+    if (!nombre || !fecha)
+        return alert("Completá nombre y fecha.");
 
     choferNombre = nombre;
     fechaRuta = fecha;
@@ -38,7 +38,7 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 
 
 // --------------------------------------------------
-// CLASIFICACIÓN AUTOMÁTICA ML
+// DETECTAR TIPO ML
 // --------------------------------------------------
 function detectarTipo(codigo) {
     if (codigo.length >= 10) return "VENTAS ML FLEX";
@@ -48,60 +48,64 @@ function detectarTipo(codigo) {
 
 
 // --------------------------------------------------
-// INICIAR ESCANEO (ZXING PRO)
+// INICIAR ESCANEO (FIX iPHONE)
 // --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
 
 async function iniciarScanner() {
-    
-    detenerCamara();
 
+    detenerCamara();
     isScannerActive = true;
+
     document.getElementById("accionesEscaneo").style.display = "block";
 
     const cont = document.getElementById("listaComprobantes");
 
-    // Crear contenedor cámara
+    // Contenedor cámara
     let camara = document.createElement("div");
     camara.id = "cameraPreview";
     camara.className = "camara-scan";
 
-    // Marco guía
     let overlay = document.createElement("div");
     overlay.className = "scanner-frame";
     camara.appendChild(overlay);
 
     cont.prepend(camara);
 
+    // VIDEO
     videoElement = document.createElement("video");
     videoElement.setAttribute("autoplay", true);
-    videoElement.setAttribute("playsinline", true);
+    videoElement.setAttribute("playsinline", true); // Obligatorio iPhone
+    videoElement.setAttribute("muted", true);       // Obligatorio Safari
     videoElement.style.width = "100%";
 
     camara.appendChild(videoElement);
 
-    // Crear lector ZXING
+    // ZXING
     const { BrowserMultiFormatReader } = ZXingBrowser;
-
     codeReader = new BrowserMultiFormatReader();
 
     try {
         const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-        const camaraTrasera = devices[devices.length - 1]?.deviceId;
+        const camaraTrasera = devices[devices.length - 1].deviceId;
 
         await codeReader.decodeFromVideoDevice(
             camaraTrasera,
             videoElement,
             async (result, err) => {
-                if (result) procesarDeteccion(result.text);
+
+                if (result) {
+                    procesarDeteccion(result.text);
+                }
             }
         );
 
-    } catch (e) {
-        alert("Error iniciando cámara");
-        console.error(e);
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo activar la cámara.");
     }
 }
+
 
 
 // --------------------------------------------------
@@ -118,15 +122,16 @@ async function procesarDeteccion(codigo) {
 
     const frameBase64 = capturarFrame();
 
-    let textoOCR = await extraerOCR(frameBase64);
-    let direccion = parseDireccion(textoOCR);
+    const textoOCR = await extraerOCR(frameBase64);
+    const direccion = parseDireccion(textoOCR);
 
     agregarComprobante(codigo, frameBase64, direccion);
 }
 
 
+
 // --------------------------------------------------
-// CAPTURAR MINIATURA
+// CAPTURA FRAME → MINIATURA
 // --------------------------------------------------
 function capturarFrame() {
     if (!videoElement) return "";
@@ -142,17 +147,18 @@ function capturarFrame() {
 }
 
 
+
 // --------------------------------------------------
 // OCR DIRECCIÓN
 // --------------------------------------------------
 async function extraerOCR(imgBase64) {
-
     if (!imgBase64) return "";
 
     try {
         const result = await Tesseract.recognize(imgBase64, "spa", OCR_CONFIG);
         return result.data.text;
     } catch (e) {
+        console.error("OCR Error:", e);
         return "";
     }
 }
@@ -177,13 +183,13 @@ function parseDireccion(texto) {
 }
 
 
+
 // --------------------------------------------------
-// EFECTOS
+// EFECTOS DE ESCANEO
 // --------------------------------------------------
 function triggerScanEffect(codigo) {
 
     const cam = document.getElementById("cameraPreview");
-
     let duplicado = historialCodigos.includes(codigo);
 
     navigator.vibrate?.(duplicado ? 300 : 120);
@@ -208,6 +214,7 @@ function mostrarMensajeFlotante(texto) {
 }
 
 
+
 // --------------------------------------------------
 // AGREGAR COMPROBANTE
 // --------------------------------------------------
@@ -216,7 +223,7 @@ function agregarComprobante(codigo, miniatura, direccion) {
     const duplicado = historialCodigos.includes(codigo);
     historialCodigos.push(codigo);
 
-    let mismoDomicilio = comprobantes.some(c => c.direccion === direccion);
+    const mismoDomicilio = comprobantes.some(c => c.direccion === direccion);
 
     comprobantes.push({
         numero: codigo,
@@ -234,6 +241,7 @@ function agregarComprobante(codigo, miniatura, direccion) {
 }
 
 
+
 // --------------------------------------------------
 // CONTADOR
 // --------------------------------------------------
@@ -241,6 +249,7 @@ function actualizarContador() {
     document.getElementById("contador").innerText =
         `Escaneados: ${comprobantes.length}`;
 }
+
 
 
 // --------------------------------------------------
@@ -252,29 +261,33 @@ function renderComprobantes() {
     const cam = document.getElementById("cameraPreview");
 
     cont.innerHTML = "";
+
     if (cam) cont.prepend(cam);
 
     comprobantes.forEach((c, index) => {
 
-        const box = document.createElement("div");
-        box.className = "comprobante fadeIn";
-
         const duplicadoTag = c.duplicado ? `<span class="duplicado-tag">DUPLICADO</span>` : "";
         const domicilioTag = c.mismoDomicilio ? `<span class="domicilio-tag">MISMO DOMICILIO – SE PAGA 1</span>` : "";
 
-        const botones = c.estado === "" ? `
+        const botones = c.estado === "" ?
+            `
             <div class="estado-btns">
                 <button class="btn-entregado" onclick="setEstado(${index}, 'ENTREGADO')">Entregado</button>
                 <button class="btn-ausente" onclick="setEstado(${index}, 'AUSENTE')">Ausente</button>
                 <button class="btn-cancelado" onclick="setEstado(${index}, 'CANCELADO')">Cancelado</button>
                 <button class="btn-demorado" onclick="setEstado(${index}, 'DEMORADO')">Demorado</button>
-            </div>` :
+            </div>
+            `
+            :
             `
             <div class="estado-btns">
                 <button class="btn-estado-activo">${c.estado}</button>
                 <button class="btn-editar" onclick="editarEstado(${index})">Editar</button>
-            </div>`;
+            </div>
+            `;
 
+        const box = document.createElement("div");
+        box.className = "comprobante fadeIn";
         box.innerHTML = `
             <div class="comp-header">
 
@@ -306,8 +319,9 @@ function renderComprobantes() {
 }
 
 
+
 // --------------------------------------------------
-// MINIATURA MODAL
+// MINIATURA → MODAL
 // --------------------------------------------------
 function verMiniatura(img) {
     document.getElementById("visorModal").style.display = "flex";
@@ -316,6 +330,7 @@ function verMiniatura(img) {
 
 document.getElementById("cerrarVisor").onclick = () =>
     document.getElementById("visorModal").style.display = "none";
+
 
 
 // --------------------------------------------------
@@ -339,6 +354,7 @@ function eliminarComprobante(i) {
 }
 
 
+
 // --------------------------------------------------
 // BOTONES FLUJO
 // --------------------------------------------------
@@ -346,27 +362,27 @@ document.getElementById("btnFinalizarEscaneo").onclick = detenerCamara;
 document.getElementById("btnAgregarMas").onclick = iniciarScanner;
 
 
+
 // --------------------------------------------------
-// DETENER CÁMARA
+// DETENER CÁMARA (FIX iPHONE)
 // --------------------------------------------------
 function detenerCamara() {
-
     if (codeReader) {
         try { codeReader.reset(); } catch {}
     }
 
     isScannerActive = false;
 
-    const cam = document.getElementById("cameraPreview");
-    if (cam) cam.remove();
+    const camara = document.getElementById("cameraPreview");
+    if (camara) camara.remove();
 }
 
 
+
 // --------------------------------------------------
-// GENERAR QR
+// QR
 // --------------------------------------------------
 document.getElementById("generarQR").onclick = () => {
-
     detenerCamara();
 
     const json = {
@@ -376,6 +392,7 @@ document.getElementById("generarQR").onclick = () => {
     };
 
     document.getElementById("qr").innerHTML = "";
+
     new QRCode(document.getElementById("qr"), {
         text: JSON.stringify(json),
         width: 260,
@@ -385,12 +402,7 @@ document.getElementById("generarQR").onclick = () => {
     document.getElementById("qrModal").style.display = "block";
 };
 
-
-// --------------------------------------------------
-// DESCARGAR QR
-// --------------------------------------------------
 document.getElementById("descargarQR").onclick = () => {
-
     const canvas = document.querySelector("#qr canvas");
     if (!canvas) return;
 
@@ -400,17 +412,10 @@ document.getElementById("descargarQR").onclick = () => {
     a.click();
 };
 
-
-// --------------------------------------------------
-// CERRAR MODAL QR
-// --------------------------------------------------
 function cerrarQR() {
-
     document.getElementById("qrModal").style.display = "none";
-
     comprobantes = [];
     historialCodigos = [];
-
     actualizarContador();
     renderComprobantes();
 }
