@@ -1,10 +1,15 @@
+/* -----------------------------------------------
+   ESTILO BASE
+------------------------------------------------ */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
-    background: #f5f5f5;
+    background: #f2f3f7;
 }
 
-/* POPUP INICIAL */
+/* -----------------------------------------------
+   POPUP INICIAL
+------------------------------------------------ */
 .popup {
     position: fixed;
     top: 0; left: 0;
@@ -13,7 +18,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10;
+    z-index: 20;
 }
 
 .popup-box {
@@ -23,10 +28,12 @@ body {
     max-width: 380px;
     border-radius: 15px;
     text-align: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
 .popup-box h2 {
     margin-top: 0;
+    font-size: 22px;
 }
 
 .popup-box input {
@@ -34,64 +41,185 @@ body {
     padding: 12px;
     margin-top: 8px;
     margin-bottom: 15px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid #ccc;
+    font-size: 16px;
 }
 
+.popup-box button {
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* -----------------------------------------------
+   HEADER
+------------------------------------------------ */
 header {
     background: #4a8df8;
     padding: 15px;
     text-align: center;
     color: white;
+    position: sticky;
+    top: 0;
+    z-index: 15;
 }
 
-button {
-    padding: 15px;
+header h1 {
+    margin: 0;
+    font-size: 22px;
+}
+
+/* Botón escaneo */
+#scanBtn {
+    background: #22aa22;
     width: 90%;
-    margin: 10px auto;
+    margin: 10px auto 0 auto;
     font-size: 18px;
-    display: block;
-    border-radius: 10px;
-    border: none;
-    background: #4a8df8;
-    color: white;
+    border-radius: 12px;
+    padding: 12px;
+    color: #fff;
 }
 
+/* Contador */
+#contador {
+    margin-top: 8px;
+    background: #fff;
+    color: #333;
+    padding: 8px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 16px;
+    width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* -----------------------------------------------
+   LISTA DE COMPROBANTES
+------------------------------------------------ */
 #listaComprobantes {
-    padding: 10px;
+    padding: 12px;
 }
 
 .comprobante {
     background: white;
     padding: 15px;
-    margin-bottom: 10px;
-    border-radius: 10px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    margin-bottom: 12px;
+    border-radius: 12px;
+    box-shadow: 0 2px 7px rgba(0,0,0,0.15);
 }
 
+/* Encabezado del comprobante */
+.comp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Etiqueta DUPLICADO */
+.duplicado-tag {
+    background: #e82323;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-left: 5px;
+    font-size: 12px;
+}
+
+/* Botón eliminar */
+.btn-eliminar {
+    background: #ff4444;
+    border: none;
+    color: white;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+/* -----------------------------------------------
+   BOTONES DE ESTADO
+------------------------------------------------ */
+.estado-btns {
+    margin-top: 10px;
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.estado-btns button {
+    flex: 1 1 calc(50% - 5px);
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    color: #fff;
+    font-weight: bold;
+    font-size: 15px;
+}
+
+/* COLORES POR ESTADO */
+.btn-entregado { background: #23c55e; }
+.btn-ausente   { background: #f59e0b; }
+.btn-cancelado { background: #ef4444; }
+.btn-demorado  { background: #3b82f6; }
+
+/* -----------------------------------------------
+   TEXTAREA OBSERVACIÓN
+------------------------------------------------ */
 textarea {
     width: 100%;
-    padding: 8px;
-    border-radius: 6px;
+    padding: 10px;
+    border-radius: 10px;
     border: 1px solid #ccc;
-    margin-top: 5px;
-    display: none;
+    margin-top: 10px;
+    font-size: 14px;
+    resize: none;
 }
 
-/* MODAL QR */
+/* -----------------------------------------------
+   FOOTER
+------------------------------------------------ */
+footer {
+    padding: 20px 10px;
+    text-align: center;
+}
+
+footer button {
+    padding: 14px;
+    width: 85%;
+    font-size: 18px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+
+#generarQR {
+    background: #4a8df8;
+    color: white;
+}
+
+#descargarQR {
+    background: #111;
+    color: white;
+}
+
+/* -----------------------------------------------
+   MODAL QR
+------------------------------------------------ */
 .modal {
     display: none;
     position: fixed;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.65);
     top: 0; left: 0;
     width: 100%; height: 100%;
+    z-index: 30;
 }
 
 .modal-content {
     background: white;
-    padding: 20px;
-    border-radius: 10px;
+    padding: 25px;
+    border-radius: 15px;
     width: 90%;
+    max-width: 380px;
     margin: 50px auto;
     text-align: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
