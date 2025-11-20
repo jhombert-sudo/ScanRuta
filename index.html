@@ -10,7 +10,7 @@
     <!-- Librería QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- ZXING (lector código de barras real) - FIX iPHONE -->
+    <!-- ZXING (lector código de barras y QR) con FIX para iPhone -->
     <script type="module">
         import * as ZXingBrowser from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
         window.ZXingBrowser = ZXingBrowser;
@@ -48,7 +48,7 @@
 
     <section id="comprobantesContainer">
 
-        <!-- BOTONES DE ESCANEO -->
+        <!-- BOTONES DEL ESCANEO -->
         <div id="accionesEscaneo" class="acciones-container" style="display:none;">
             <button id="btnFinalizarEscaneo" class="btn-finalizar">⛔ Finalizar escaneo</button>
             <button id="btnAgregarMas" class="btn-agregar">➕ Agregar comprobantes</button>
@@ -56,7 +56,6 @@
 
         <h2>Comprobantes procesados</h2>
 
-        <!-- Cámara + lista -->
         <div id="listaComprobantes"></div>
 
     </section>
