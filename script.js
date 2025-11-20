@@ -10,16 +10,21 @@ let cooldown = false;
 
 let historialCodigos = []; // Para duplicados
 
+let codeReader = null;
+let videoElement = null;
+
 // OCR CONFIG
 const OCR_CONFIG = {
     lang: "spa",
     tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 -.,/#"
 };
 
+
 // --------------------------------------------------
 // POPUP INICIAL
 // --------------------------------------------------
 document.getElementById("btnIniciarRuta").onclick = () => {
+
     const nombre = document.getElementById("inputChofer").value.trim();
     const fecha = document.getElementById("inputFecha").value;
 
@@ -31,8 +36,9 @@ document.getElementById("btnIniciarRuta").onclick = () => {
     document.getElementById("popupInicio").style.display = "none";
 };
 
+
 // --------------------------------------------------
-// CLASIFICACIÓN AUTOMÁTICA (TIPO ML)
+// CLASIFICACIÓN AUTOMÁTICA ML
 // --------------------------------------------------
 function detectarTipo(codigo) {
     if (codigo.length >= 10) return "VENTAS ML FLEX";
@@ -40,84 +46,109 @@ function detectarTipo(codigo) {
     return "DESCONOCIDO";
 }
 
+
 // --------------------------------------------------
-// ESCANEO CONTINUO
+// INICIAR ESCANEO (ZXING PRO)
 // --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
 
-function iniciarScanner() {
+async function iniciarScanner() {
+    
     detenerCamara();
+
     isScannerActive = true;
     document.getElementById("accionesEscaneo").style.display = "block";
 
     const cont = document.getElementById("listaComprobantes");
 
+    // Crear contenedor cámara
     let camara = document.createElement("div");
     camara.id = "cameraPreview";
     camara.className = "camara-scan";
 
+    // Marco guía
     let overlay = document.createElement("div");
     overlay.className = "scanner-frame";
     camara.appendChild(overlay);
 
     cont.prepend(camara);
 
-    Quagga.init({
-        inputStream: { type: "LiveStream", constraints: { facingMode: "environment" }, target: camara },
-        decoder: {
-            readers: [
-                "code_128_reader",
-                "ean_reader",
-                "ean_8_reader",
-                "code_39_reader"
-            ]
-        },
-        locate: true
-    }, err => {
-        if (err) return alert("Error iniciando cámara");
-        Quagga.start();
-    });
+    videoElement = document.createElement("video");
+    videoElement.setAttribute("autoplay", true);
+    videoElement.setAttribute("playsinline", true);
+    videoElement.style.width = "100%";
 
-    // DETECCIÓN
-    Quagga.onDetected(async data => {
-        if (!data?.codeResult) return;
-        if (cooldown) return;
+    camara.appendChild(videoElement);
 
-        cooldown = true;
-        setTimeout(() => cooldown = false, 900);
+    // Crear lector ZXING
+    const { BrowserMultiFormatReader } = ZXingBrowser;
 
-        const codigo = data.codeResult.code.trim();
-        triggerScanEffect(codigo);
+    codeReader = new BrowserMultiFormatReader();
 
-        const frameBase64 = capturarFrame();
-        const textoOCR = await extraerOCR(frameBase64);
-        const direccion = parseDireccion(textoOCR);
+    try {
+        const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+        const camaraTrasera = devices[devices.length - 1]?.deviceId;
 
-        agregarComprobante(codigo, frameBase64, direccion);
-    });
+        await codeReader.decodeFromVideoDevice(
+            camaraTrasera,
+            videoElement,
+            async (result, err) => {
+                if (result) procesarDeteccion(result.text);
+            }
+        );
+
+    } catch (e) {
+        alert("Error iniciando cámara");
+        console.error(e);
+    }
 }
 
+
 // --------------------------------------------------
-// CAPTURAR FRAME MINIATURA
+// PROCESAR DETECCIÓN
+// --------------------------------------------------
+async function procesarDeteccion(codigo) {
+
+    if (cooldown) return;
+
+    cooldown = true;
+    setTimeout(() => cooldown = false, 800);
+
+    triggerScanEffect(codigo);
+
+    const frameBase64 = capturarFrame();
+
+    let textoOCR = await extraerOCR(frameBase64);
+    let direccion = parseDireccion(textoOCR);
+
+    agregarComprobante(codigo, frameBase64, direccion);
+}
+
+
+// --------------------------------------------------
+// CAPTURAR MINIATURA
 // --------------------------------------------------
 function capturarFrame() {
-    const video = document.querySelector("#cameraPreview video");
-    if (!video) return "";
+    if (!videoElement) return "";
 
     const canvas = document.createElement("canvas");
     canvas.width = 300;
     canvas.height = 300;
 
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, 300, 300);
+    ctx.drawImage(videoElement, 0, 0, 300, 300);
 
     return canvas.toDataURL("image/jpeg");
 }
 
+
 // --------------------------------------------------
-// OCR DIRECCIÓN (Patrón A: dirección real)
+// OCR DIRECCIÓN
 // --------------------------------------------------
 async function extraerOCR(imgBase64) {
+
+    if (!imgBase64) return "";
+
     try {
         const result = await Tesseract.recognize(imgBase64, "spa", OCR_CONFIG);
         return result.data.text;
@@ -127,64 +158,65 @@ async function extraerOCR(imgBase64) {
 }
 
 function parseDireccion(texto) {
+
     if (!texto) return "";
 
     let lineas = texto
         .split("\n")
-        .map(l => l.trim())
-        .filter(l => l.length > 4);
+        .map(t => t.trim())
+        .filter(t => t.length > 3);
 
-    // Dirección: línea que tenga letras + números
     const direccion = lineas.find(l => /\d/.test(l) && /[A-Za-z]/.test(l)) || "";
-
-    // Localidad: cualquier línea que tenga ciudad, código postal o provincia
     const localidad = lineas.find(l =>
-        l.toLowerCase().includes("bs") ||
         l.toLowerCase().includes("buenos") ||
-        /\b\d{4}\b/.test(l) ||
-        l.length > 7
+        l.toLowerCase().includes("bs") ||
+        /\b\d{4}\b/.test(l)
     ) || "";
 
     return (direccion + " – " + localidad).trim();
 }
 
+
 // --------------------------------------------------
-// EFECTOS VISUALES
+// EFECTOS
 // --------------------------------------------------
 function triggerScanEffect(codigo) {
+
     const cam = document.getElementById("cameraPreview");
-    const esDuplicado = historialCodigos.includes(codigo);
 
-    navigator.vibrate?.(esDuplicado ? 350 : 120);
+    let duplicado = historialCodigos.includes(codigo);
 
-    cam.classList.add(esDuplicado ? "scan-duplicado" : "scan-ok");
+    navigator.vibrate?.(duplicado ? 300 : 120);
 
-    if (esDuplicado) mostrarMensajeFlotante("DUPLICADO");
+    cam.classList.add(duplicado ? "scan-duplicado" : "scan-ok");
+
+    if (duplicado) mostrarMensajeFlotante("DUPLICADO");
 
     setTimeout(() => cam.classList.remove("scan-ok", "scan-duplicado"), 500);
 }
 
 function mostrarMensajeFlotante(texto) {
+
     const msg = document.createElement("div");
     msg.className = "mensaje-duplicado";
     msg.innerText = texto;
+
     document.body.appendChild(msg);
 
     setTimeout(() => msg.classList.add("show"), 10);
     setTimeout(() => msg.remove(), 1600);
 }
 
+
 // --------------------------------------------------
 // AGREGAR COMPROBANTE
 // --------------------------------------------------
 function agregarComprobante(codigo, miniatura, direccion) {
+
     const duplicado = historialCodigos.includes(codigo);
     historialCodigos.push(codigo);
 
-    let mismoDomicilio = false;
-    if (direccion) {
-        mismoDomicilio = comprobantes.some(c => c.direccion === direccion);
-    }
+    let mismoDomicilio = comprobantes.some(c => c.direccion === direccion);
 
     comprobantes.push({
         numero: codigo,
@@ -201,6 +233,7 @@ function agregarComprobante(codigo, miniatura, direccion) {
     renderComprobantes();
 }
 
+
 // --------------------------------------------------
 // CONTADOR
 // --------------------------------------------------
@@ -209,26 +242,27 @@ function actualizarContador() {
         `Escaneados: ${comprobantes.length}`;
 }
 
+
 // --------------------------------------------------
 // RENDER LISTA
 // --------------------------------------------------
 function renderComprobantes() {
+
     const cont = document.getElementById("listaComprobantes");
-    const camara = document.getElementById("cameraPreview");
+    const cam = document.getElementById("cameraPreview");
 
     cont.innerHTML = "";
-
-    if (camara) cont.prepend(camara);
+    if (cam) cont.prepend(cam);
 
     comprobantes.forEach((c, index) => {
+
         const box = document.createElement("div");
         box.className = "comprobante fadeIn";
 
         const duplicadoTag = c.duplicado ? `<span class="duplicado-tag">DUPLICADO</span>` : "";
-        const domicilioTag = c.mismoDomicilio ? `<span class="domicilio-tag">Misimo domicilio – se paga 1</span>` : "";
+        const domicilioTag = c.mismoDomicilio ? `<span class="domicilio-tag">MISMO DOMICILIO – SE PAGA 1</span>` : "";
 
-        const botones = c.estado === "" ?
-            `
+        const botones = c.estado === "" ? `
             <div class="estado-btns">
                 <button class="btn-entregado" onclick="setEstado(${index}, 'ENTREGADO')">Entregado</button>
                 <button class="btn-ausente" onclick="setEstado(${index}, 'AUSENTE')">Ausente</button>
@@ -239,8 +273,7 @@ function renderComprobantes() {
             <div class="estado-btns">
                 <button class="btn-estado-activo">${c.estado}</button>
                 <button class="btn-editar" onclick="editarEstado(${index})">Editar</button>
-            </div>
-            `;
+            </div>`;
 
         box.innerHTML = `
             <div class="comp-header">
@@ -250,19 +283,18 @@ function renderComprobantes() {
                 <div class="info">
                     <strong>${c.numero}</strong>
                     <small>${c.tipo}</small>
-
                     <div class="direccion">${c.direccion || ""}</div>
-
                     ${duplicadoTag}
                     ${domicilioTag}
                 </div>
 
                 <button class="btn-eliminar" onclick="eliminarComprobante(${index})">🗑️</button>
+
             </div>
 
             ${botones}
 
-            <textarea 
+            <textarea
                 id="obs_${index}"
                 placeholder="Observación..."
                 style="display:${c.estado === 'ENTREGADO' || c.estado === '' ? 'none' : 'block'}"
@@ -273,17 +305,18 @@ function renderComprobantes() {
     });
 }
 
+
 // --------------------------------------------------
-// MINIATURA → MODAL
+// MINIATURA MODAL
 // --------------------------------------------------
 function verMiniatura(img) {
     document.getElementById("visorModal").style.display = "flex";
     document.getElementById("visorImg").src = img;
 }
 
-document.getElementById("cerrarVisor").onclick = () => {
+document.getElementById("cerrarVisor").onclick = () =>
     document.getElementById("visorModal").style.display = "none";
-};
+
 
 // --------------------------------------------------
 // ESTADOS
@@ -305,31 +338,42 @@ function eliminarComprobante(i) {
     renderComprobantes();
 }
 
+
 // --------------------------------------------------
-// BOTONES DE FLUJO
+// BOTONES FLUJO
 // --------------------------------------------------
 document.getElementById("btnFinalizarEscaneo").onclick = detenerCamara;
 document.getElementById("btnAgregarMas").onclick = iniciarScanner;
 
+
 // --------------------------------------------------
-// DETENER CAMARA
+// DETENER CÁMARA
 // --------------------------------------------------
 function detenerCamara() {
-    if (isScannerActive) {
-        Quagga.stop();
-        isScannerActive = false;
+
+    if (codeReader) {
+        try { codeReader.reset(); } catch {}
     }
+
+    isScannerActive = false;
+
     const cam = document.getElementById("cameraPreview");
     if (cam) cam.remove();
 }
+
 
 // --------------------------------------------------
 // GENERAR QR
 // --------------------------------------------------
 document.getElementById("generarQR").onclick = () => {
+
     detenerCamara();
 
-    const json = { fecha: fechaRuta, chofer: choferNombre, comprobantes };
+    const json = {
+        fecha: fechaRuta,
+        chofer: choferNombre,
+        comprobantes
+    };
 
     document.getElementById("qr").innerHTML = "";
     new QRCode(document.getElementById("qr"), {
@@ -341,10 +385,12 @@ document.getElementById("generarQR").onclick = () => {
     document.getElementById("qrModal").style.display = "block";
 };
 
+
 // --------------------------------------------------
 // DESCARGAR QR
 // --------------------------------------------------
 document.getElementById("descargarQR").onclick = () => {
+
     const canvas = document.querySelector("#qr canvas");
     if (!canvas) return;
 
@@ -354,13 +400,17 @@ document.getElementById("descargarQR").onclick = () => {
     a.click();
 };
 
+
 // --------------------------------------------------
 // CERRAR MODAL QR
 // --------------------------------------------------
 function cerrarQR() {
+
     document.getElementById("qrModal").style.display = "none";
+
     comprobantes = [];
     historialCodigos = [];
+
     actualizarContador();
     renderComprobantes();
 }
