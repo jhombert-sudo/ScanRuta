@@ -10,7 +10,7 @@
     <!-- Librería QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- Librería QuaggaJS (ESCANEO CONTINUO) -->
+    <!-- Quagga (Escaneo continuo) -->
     <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
     <link rel="manifest" href="manifest.json">
@@ -35,7 +35,7 @@
     <header>
         <h1>Control de Ruta</h1>
 
-        <!-- Botón principal para abrir cámara -->
+        <!-- Botón para iniciar escaneo -->
         <button id="scanBtn">📷 Escanear códigos</button>
 
         <!-- Contador -->
@@ -44,15 +44,15 @@
 
     <section id="comprobantesContainer">
 
-        <!-- BOTONES DE FLUJO (arriba de la lista) -->
+        <!-- BOTONES DE FLUJO (solo visibles cuando la cámara está activa) -->
         <div id="accionesEscaneo" class="acciones-container" style="display:none;">
-            <button id="btnFinalizarEscaneo" class="btn-finalizar">Finalizar escaneo</button>
+            <button id="btnFinalizarEscaneo" class="btn-finalizar">⛔ Finalizar escaneo</button>
             <button id="btnAgregarMas" class="btn-agregar">➕ Agregar comprobantes</button>
         </div>
 
         <h2>Comprobantes procesados</h2>
 
-        <!-- Contenedor donde aparece cámara y lista -->
+        <!-- Cámara + comprobantes -->
         <div id="listaComprobantes"></div>
 
     </section>
@@ -69,6 +69,12 @@
             <div id="qr"></div>
             <button onclick="cerrarQR()">Cerrar</button>
         </div>
+    </div>
+
+    <!-- MODAL PARA MINIATURA AMPLIADA -->
+    <div id="visorModal" class="visor-modal">
+        <span id="cerrarVisor" class="cerrar-visor">✖</span>
+        <img id="visorImg" class="visor-img" src="">
     </div>
 
     <script src="script.js"></script>
