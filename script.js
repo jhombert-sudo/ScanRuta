@@ -41,19 +41,20 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 
 
 // --------------------------------------------------
-// TIPO ML REAL
+// DETECTAR TIPO (modo A: por tipo de código)
 // --------------------------------------------------
-function detectarTipo(codigo) {
-    if (codigo.length >= 12) return "VENTAS ML FLEX";
-    if (codigo.length >= 7 && codigo.length <= 10) return "VENTAS ML MOTO";
-    return "DESCONOCIDO";
+function detectarTipo(codigo, esQR) {
+    if (esQR) return "VENTAS ML FLEX";   // QR = FLEX
+
+    return "VENTAS ML MOTO";             // Barras = MOTO
 }
 
 
 // --------------------------------------------------
-// INICIAR ESCANEO
+// BOTÓN INICIAR ESCANEO
 // --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
+
 
 async function iniciarScanner() {
 
@@ -64,14 +65,14 @@ async function iniciarScanner() {
 
     const cont = document.getElementById("listaComprobantes");
 
-    // Crear contenedor de cámara
+    // Crear contenedor
     let camara = document.createElement("div");
     camara.id = "cameraPreview";
     camara.className = "camara-scan cuadrado-etiqueta";
 
     cont.prepend(camara);
 
-    // Crear video
+    // Video
     videoElement = document.createElement("video");
     videoElement.setAttribute("autoplay", true);
     videoElement.setAttribute("playsinline", true);
@@ -84,7 +85,7 @@ async function iniciarScanner() {
     const { BrowserMultiFormatReader, BrowserCodeReader } = window.ZXingBrowser;
 
     codeReader = new BrowserMultiFormatReader({
-        delayBetweenScanAttempts: 200
+        delayBetweenScanAttempts: 180
     });
 
     try {
@@ -97,7 +98,12 @@ async function iniciarScanner() {
             camaraTrasera,
             videoElement,
             async (result, err) => {
-                if (result) procesarDeteccion(result.text);
+                if (!result) return;
+
+                const codigo = result.text;
+                const esQR = result.resultPoints?.length === 4; // ZXING indica QR cuando hay 4 esquinas
+
+                procesarDeteccion(codigo, esQR);
             }
         );
     } catch (err) {
@@ -110,7 +116,7 @@ async function iniciarScanner() {
 // --------------------------------------------------
 // PROCESAR DETECCIÓN
 // --------------------------------------------------
-async function procesarDeteccion(codigo) {
+async function procesarDeteccion(codigo, esQR) {
 
     if (cooldown) return;
 
@@ -119,12 +125,19 @@ async function procesarDeteccion(codigo) {
 
     triggerScanEffect(codigo);
 
+    // Captura miniatura cuadrada
     const frameBase64 = capturarFrameRecortado();
 
-    const textoOCR = await extraerOCR(frameBase64);
-    const direccion = parseDireccion(textoOCR);
+    let textoOCR = "";
+    let direccion = "";
 
-    agregarComprobante(codigo, frameBase64, direccion);
+    // Solo FLEX usa OCR. Moto NO tiene dirección arriba del QR.
+    if (esQR) {
+        textoOCR = await extraerOCR(frameBase64);
+        direccion = parseDireccion(textoOCR);
+    }
+
+    agregarComprobante(codigo, frameBase64, direccion, esQR);
 }
 
 
@@ -134,24 +147,24 @@ async function procesarDeteccion(codigo) {
 function capturarFrameRecortado() {
     if (!videoElement) return "";
 
-    const videoWidth = videoElement.videoWidth;
-    const videoHeight = videoElement.videoHeight;
+    const w = videoElement.videoWidth;
+    const h = videoElement.videoHeight;
 
-    const side = Math.min(videoWidth, videoHeight);
+    const side = Math.min(w, h);
 
-    const sx = (videoWidth - side) / 2;
-    const sy = (videoHeight - side) / 2;
+    const sx = (w - side) / 2;
+    const sy = (h - side) / 2;
 
     const canvas = document.createElement("canvas");
-    canvas.width = 450;
-    canvas.height = 450;
+    canvas.width = 500;
+    canvas.height = 500;
 
     const ctx = canvas.getContext("2d");
 
     ctx.drawImage(
         videoElement,
         sx, sy, side, side,
-        0, 0, 450, 450
+        0, 0, 500, 500
     );
 
     return canvas.toDataURL("image/jpeg");
@@ -159,21 +172,20 @@ function capturarFrameRecortado() {
 
 
 // --------------------------------------------------
-// OCR DIRECCIÓN
+// OCR DIRECCIÓN FLEX
 // --------------------------------------------------
 async function extraerOCR(imgBase64) {
-    if (!imgBase64) return "";
-
     try {
         const result = await Tesseract.recognize(imgBase64, "spa", OCR_CONFIG);
         return result.data.text;
-    } catch (e) {
-        console.error("OCR Error:", e);
+    } catch (err) {
+        console.error("OCR error:", err);
         return "";
     }
 }
 
 function parseDireccion(texto) {
+
     if (!texto) return "";
 
     let lineas = texto
@@ -181,12 +193,14 @@ function parseDireccion(texto) {
         .map(l => l.trim())
         .filter(l => l.length > 3);
 
-    // Dirección real (Flex)
-    const direccion = lineas.find(l => /direccion/i.test(l))?.replace(/direccion:/i, "").trim() || "";
+    const direccion = lineas.find(l =>
+        /\d/.test(l) && /[A-Za-z]/.test(l)
+    ) || "";
 
-    // Flex trae barrio/localidad debajo
     const localidad = lineas.find(l =>
-        l.includes("CABA") || l.includes("CAPITAL") || /\b\d{4}\b/.test(l)
+        l.includes("CABA") ||
+        l.includes("CAPITAL") ||
+        /\b\d{4}\b/.test(l)
     ) || "";
 
     return (direccion + " – " + localidad).trim();
@@ -201,7 +215,7 @@ function triggerScanEffect(codigo) {
 
     const duplicado = historialCodigos.includes(codigo);
 
-    navigator.vibrate?.(duplicado ? 300 : 120);
+    navigator.vibrate?.(duplicado ? 320 : 120);
 
     cam.classList.add(duplicado ? "scan-duplicado" : "scan-ok");
 
@@ -225,15 +239,20 @@ function mostrarMensajeFlotante(texto) {
 // --------------------------------------------------
 // AGREGAR COMPROBANTE
 // --------------------------------------------------
-function agregarComprobante(codigo, miniatura, direccion) {
+function agregarComprobante(codigo, miniatura, direccion, esQR) {
+
     const duplicado = historialCodigos.includes(codigo);
     historialCodigos.push(codigo);
 
-    const mismoDomicilio = comprobantes.some(c => c.direccion === direccion);
+    const tipo = detectarTipo(codigo, esQR);
+
+    const mismoDomicilio = direccion
+        ? comprobantes.some(c => c.direccion === direccion)
+        : false;
 
     comprobantes.push({
         numero: codigo,
-        tipo: detectarTipo(codigo),
+        tipo,
         estado: "",
         observacion: "",
         duplicado,
@@ -260,13 +279,15 @@ function actualizarContador() {
 // RENDER LISTA
 // --------------------------------------------------
 function renderComprobantes() {
+
     const cont = document.getElementById("listaComprobantes");
     const cam = document.getElementById("cameraPreview");
 
     cont.innerHTML = "";
     if (cam) cont.prepend(cam);
 
-    comprobantes.forEach((c, index) => {
+    comprobantes.forEach((c, i) => {
+
         const duplicadoTag = c.duplicado
             ? `<span class="duplicado-tag">DUPLICADO</span>`
             : "";
@@ -279,22 +300,25 @@ function renderComprobantes() {
             c.estado === ""
                 ? `
                 <div class="estado-btns">
-                    <button class="btn-entregado" onclick="setEstado(${index}, 'ENTREGADO')">Entregado</button>
-                    <button class="btn-ausente" onclick="setEstado(${index}, 'AUSENTE')">Ausente</button>
-                    <button class="btn-cancelado" onclick="setEstado(${index}, 'CANCELADO')">Cancelado</button>
-                    <button class="btn-demorado" onclick="setEstado(${index}, 'DEMORADO')">Demorado</button>
+                    <button onclick="setEstado(${i}, 'ENTREGADO')" class="btn-entregado">Entregado</button>
+                    <button onclick="setEstado(${i}, 'AUSENTE')" class="btn-ausente">Ausente</button>
+                    <button onclick="setEstado(${i}, 'CANCELADO')" class="btn-cancelado">Cancelado</button>
+                    <button onclick="setEstado(${i}, 'DEMORADO')" class="btn-demorado">Demorado</button>
                 </div>`
                 : `
                 <div class="estado-btns">
                     <button class="btn-estado-activo">${c.estado}</button>
-                    <button class="btn-editar" onclick="editarEstado(${index})">Editar</button>
+                    <button class="btn-editar" onclick="editarEstado(${i})">Editar</button>
                 </div>`;
 
         const box = document.createElement("div");
         box.className = "comprobante fadeIn";
+
         box.innerHTML = `
             <div class="comp-header">
+
                 <img src="${c.miniatura}" class="miniatura" onclick="verMiniatura('${c.miniatura}')">
+
                 <div class="info">
                     <strong>${c.numero}</strong>
                     <small>${c.tipo}</small>
@@ -302,11 +326,16 @@ function renderComprobantes() {
                     ${duplicadoTag}
                     ${domicilioTag}
                 </div>
-                <button class="btn-eliminar" onclick="eliminarComprobante(${index})">🗑️</button>
+
+                <button onclick="eliminarComprobante(${i})" class="btn-eliminar">🗑️</button>
+
             </div>
+
             ${botones}
-            <textarea id="obs_${index}" placeholder="Observación..."
-                style="display:${c.estado === 'ENTREGADO' || c.estado === '' ? 'none' : 'block'}"
+
+            <textarea id="obs_${i}"
+                placeholder="Observación..."
+                style="display:${c.estado === "" || c.estado === "ENTREGADO" ? "none" : "block"}"
             >${c.observacion}</textarea>
         `;
 
@@ -316,7 +345,7 @@ function renderComprobantes() {
 
 
 // --------------------------------------------------
-// MINIATURA MODAL
+// MINIATURA → MODAL
 // --------------------------------------------------
 function verMiniatura(img) {
     document.getElementById("visorModal").style.display = "flex";
@@ -349,20 +378,18 @@ function eliminarComprobante(i) {
 
 
 // --------------------------------------------------
-// BOTONES FLUJO
+// BOTONES
 // --------------------------------------------------
 document.getElementById("btnFinalizarEscaneo").onclick = detenerCamara;
 document.getElementById("btnAgregarMas").onclick = iniciarScanner;
 
 
 // --------------------------------------------------
-// DETENER CAMARA
+// DETENER CÁMARA
 // --------------------------------------------------
 function detenerCamara() {
     if (codeReader) {
-        try {
-            codeReader.reset();
-        } catch {}
+        try { codeReader.reset(); } catch {}
     }
 
     isScannerActive = false;
