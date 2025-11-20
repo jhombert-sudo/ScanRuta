@@ -107,9 +107,61 @@ header h1 {
     margin-bottom: 12px;
     border-radius: 12px;
     box-shadow: 0 2px 7px rgba(0,0,0,0.15);
+    animation: fadeInAnim 0.25s ease;
 }
 
-/* Encabezado del comprobante */
+/* Animación FadeIn */
+@keyframes fadeInAnim {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* -----------------------------------------------
+   CÁMARA
+------------------------------------------------ */
+#cameraPreview {
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    transition: box-shadow 0.25s;
+}
+
+/* Escaneo correcto → borde verde */
+.scan-ok {
+    box-shadow: 0 0 30px 6px #22ff22 inset !important;
+}
+
+/* Escaneo duplicado → borde rojo */
+.scan-duplicado {
+    box-shadow: 0 0 30px 6px #ff2222 inset !important;
+}
+
+/* -----------------------------------------------
+   MENSAJE FLOTANTE DUPLICADO
+------------------------------------------------ */
+.mensaje-duplicado {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    background: rgba(255,0,0,0.85);
+    color: #fff;
+    padding: 14px 25px;
+    border-radius: 12px;
+    font-size: 22px;
+    opacity: 0;
+    transition: 0.25s;
+    z-index: 9999;
+}
+
+.mensaje-duplicado.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* -----------------------------------------------
+   ENCABEZADO DEL COMPROBANTE
+------------------------------------------------ */
 .comp-header {
     display: flex;
     justify-content: space-between;
@@ -156,11 +208,33 @@ header h1 {
     font-size: 15px;
 }
 
-/* COLORES POR ESTADO */
+/* Colores por estado */
 .btn-entregado { background: #23c55e; }
 .btn-ausente   { background: #f59e0b; }
 .btn-cancelado { background: #ef4444; }
 .btn-demorado  { background: #3b82f6; }
+
+/* Estado activo */
+.btn-estado-activo {
+    flex: 1 1 100%;
+    background: #222;
+    padding: 14px;
+    border-radius: 10px;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* Botón editar */
+.btn-editar {
+    flex: 1 1 100%;
+    background: #888;
+    padding: 12px;
+    border-radius: 10px;
+    color: white;
+    font-size: 15px;
+    font-weight: bold;
+}
 
 /* -----------------------------------------------
    TEXTAREA OBSERVACIÓN
