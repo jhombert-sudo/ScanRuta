@@ -10,13 +10,10 @@
     <!-- Librería QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- ZXING (lector código de barras y QR) con FIX para iPhone -->
-    <script type="module">
-        import * as ZXingBrowser from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
-        window.ZXingBrowser = ZXingBrowser;
-    </script>
+    <!-- ZXING (VERSIÓN QUE FUNCIONA EN SAFARI / IPHONE / GITHUB) -->
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
 
-    <!-- Tesseract OCR -->
+    <!-- Tesseract (OCR dirección) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <link rel="manifest" href="manifest.json">
@@ -48,7 +45,6 @@
 
     <section id="comprobantesContainer">
 
-        <!-- BOTONES DEL ESCANEO -->
         <div id="accionesEscaneo" class="acciones-container" style="display:none;">
             <button id="btnFinalizarEscaneo" class="btn-finalizar">⛔ Finalizar escaneo</button>
             <button id="btnAgregarMas" class="btn-agregar">➕ Agregar comprobantes</button>
