@@ -13,12 +13,10 @@
     <!-- ZXING (lector código de barras real) - FIX iPHONE -->
     <script type="module">
         import * as ZXingBrowser from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
-
-        // Exponer el módulo al window
         window.ZXingBrowser = ZXingBrowser;
     </script>
 
-    <!-- Tesseract (OCR dirección) -->
+    <!-- Tesseract OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <link rel="manifest" href="manifest.json">
@@ -50,6 +48,7 @@
 
     <section id="comprobantesContainer">
 
+        <!-- BOTONES DE ESCANEO -->
         <div id="accionesEscaneo" class="acciones-container" style="display:none;">
             <button id="btnFinalizarEscaneo" class="btn-finalizar">⛔ Finalizar escaneo</button>
             <button id="btnAgregarMas" class="btn-agregar">➕ Agregar comprobantes</button>
@@ -57,6 +56,7 @@
 
         <h2>Comprobantes procesados</h2>
 
+        <!-- Cámara + lista -->
         <div id="listaComprobantes"></div>
 
     </section>
