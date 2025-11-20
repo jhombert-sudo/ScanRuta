@@ -10,10 +10,10 @@
     <!-- Librería QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- ZXING (lector código de barras real) -->
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@zxing/browser@latest"></script>
+    <!-- ZXING (VERSIÓN ESTABLE PARA ANDROID + IPHONE) -->
+    <script src="https://unpkg.com/@zxing/browser@0.1.1/umd/index.min.js"></script>
 
-    <!-- Tesseract (OCR dirección) -->
+    <!-- OCR Tesseract -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <link rel="manifest" href="manifest.json">
@@ -38,7 +38,7 @@
     <header>
         <h1>Control de Ruta</h1>
 
-        <!-- Botón para iniciar cámara -->
+        <!-- Botón iniciar escaneo -->
         <button id="scanBtn">📷 Escanear códigos</button>
 
         <!-- Contador -->
@@ -47,7 +47,7 @@
 
     <section id="comprobantesContainer">
 
-        <!-- BOTONES DEL FLUJO A (aparecen solo con cámara activa) -->
+        <!-- BOTONES DEL FLUJO A -->
         <div id="accionesEscaneo" class="acciones-container" style="display:none;">
             <button id="btnFinalizarEscaneo" class="btn-finalizar">⛔ Finalizar escaneo</button>
             <button id="btnAgregarMas" class="btn-agregar">➕ Agregar comprobantes</button>
@@ -55,7 +55,7 @@
 
         <h2>Comprobantes procesados</h2>
 
-        <!-- Aquí aparece la cámara + la lista -->
+        <!-- Cámara + lista -->
         <div id="listaComprobantes"></div>
 
     </section>
@@ -74,7 +74,7 @@
         </div>
     </div>
 
-    <!-- MODAL PARA MINIATURA AMPLIADA -->
+    <!-- MODAL DE MINIATURA -->
     <div id="visorModal" class="visor-modal" style="display:none;">
         <span id="cerrarVisor" class="cerrar-visor">✖</span>
         <img id="visorImg" class="visor-img" src="">
