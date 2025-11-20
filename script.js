@@ -5,10 +5,10 @@ let comprobantes = [];
 let choferNombre = "";
 let fechaRuta = "";
 
-let scanning = false;
 let isScannerActive = false;
+let cooldown = false;
 
-// Para detectar duplicados
+// Duplicados
 let historialCodigos = [];
 
 
@@ -26,10 +26,8 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 
     choferNombre = nombre;
     fechaRuta = fecha;
-
     document.getElementById("popupInicio").style.display = "none";
 };
-
 
 // --------------------------------------------------
 // CLASIFICACIÓN AUTOMÁTICA
@@ -40,60 +38,93 @@ function detectarTipo(codigo) {
     return "DESCONOCIDO";
 }
 
-
 // --------------------------------------------------
-// INICIAR ESCANEO (QUAGGAJS)
+// INICIAR ESCÁNER
 // --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
 
 function iniciarScanner() {
-    if (isScannerActive) {
-        alert("El escáner ya está activo.");
-        return;
-    }
+    if (isScannerActive) return;
 
     isScannerActive = true;
-    scanning = true;
 
     const cont = document.getElementById("listaComprobantes");
 
-    // Inserta un div donde se va a ver la cámara
-    const camara = document.createElement("div");
+    let camara = document.createElement("div");
     camara.id = "cameraPreview";
-    camara.style.width = "100%";
-    camara.style.height = "280px";
-    camara.style.background = "#000";
+    camara.className = "camara-scan";
     cont.prepend(camara);
 
-    // Activa Quagga
     Quagga.init({
         inputStream: {
             type: "LiveStream",
             constraints: { facingMode: "environment" },
-            target: document.querySelector('#cameraPreview')
+            target: camara
         },
         decoder: {
             readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader"]
         }
     }, function (err) {
         if (err) {
-            console.error(err);
+            console.log(err);
             alert("Error iniciando cámara");
             return;
         }
         Quagga.start();
     });
 
-    // Evento cuando detecta un código
+    // DETECCIÓN + ANIMACIONES
     Quagga.onDetected((data) => {
         if (!data || !data.codeResult) return;
 
-        const codigo = data.codeResult.code;
+        if (cooldown) return;
+        cooldown = true;
+        setTimeout(() => cooldown = false, 900);
 
+        const codigo = data.codeResult.code.trim();
+
+        triggerScanEffect(codigo);
         agregarComprobante(codigo);
     });
 }
 
+// --------------------------------------------------
+// EFECTOS DE ESCANEO
+// --------------------------------------------------
+function triggerScanEffect(codigo) {
+
+    const cam = document.getElementById("cameraPreview");
+
+    let esDuplicado = historialCodigos.includes(codigo);
+
+    if (navigator.vibrate) navigator.vibrate(esDuplicado ? 300 : 150);
+
+    if (esDuplicado) {
+        cam.classList.add("scan-duplicado");
+        mostrarMensajeFlotante("DUPLICADO");
+    } else {
+        cam.classList.add("scan-ok");
+    }
+
+    setTimeout(() => {
+        cam.classList.remove("scan-ok");
+        cam.classList.remove("scan-duplicado");
+    }, 500);
+}
+
+// --------------------------------------------------
+// MENSAJE FLOTANTE DUPLICADO
+// --------------------------------------------------
+function mostrarMensajeFlotante(texto) {
+    const msg = document.createElement("div");
+    msg.className = "mensaje-duplicado";
+    msg.innerText = texto;
+
+    document.body.appendChild(msg);
+
+    setTimeout(() => msg.classList.add("show"), 10);
+    setTimeout(() => msg.remove(), 1600);
+}
 
 // --------------------------------------------------
 // AGREGAR COMPROBANTE
@@ -109,73 +140,82 @@ function agregarComprobante(codigo) {
         tipo: detectarTipo(codigo),
         estado: "",
         observacion: "",
-        duplicado: duplicado ? true : false
+        duplicado: duplicado
     });
 
     actualizarContador();
     renderComprobantes();
 
-    // Beep
     const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
     audio.volume = 0.3;
     audio.play();
 }
 
-
 // --------------------------------------------------
-// ACTUALIZAR CONTADOR
+// CONTADOR
 // --------------------------------------------------
 function actualizarContador() {
     document.getElementById("contador").innerText =
         `Escaneados: ${comprobantes.length}`;
 }
 
-
 // --------------------------------------------------
-// RENDERIZAR LISTA
+// RENDER DE LISTA
 // --------------------------------------------------
 function renderComprobantes() {
     const cont = document.getElementById("listaComprobantes");
-
-    // Mantener la cámara arriba
     const camara = document.getElementById("cameraPreview");
 
     cont.innerHTML = "";
     if (camara) cont.prepend(camara);
 
     comprobantes.forEach((c, index) => {
-        const box = document.createElement("div");
-        box.className = "comprobante";
+        let box = document.createElement("div");
+        box.className = "comprobante fadeIn";
 
-        let marcaDuplicado = c.duplicado ?
-            `<span class="duplicado-tag">DUPLICADO</span>` :
-            "";
+        let duplicadoTag = c.duplicado ?
+            `<span class="duplicado-tag">DUPLICADO</span>` : ``;
 
-        box.innerHTML = `
-            <div class="comp-header">
-                <div>
-                    <strong>${c.numero}</strong> 
-                    <small>${c.tipo}</small>
-                    ${marcaDuplicado}
-                </div>
-
-                <button class="btn-eliminar" onclick="eliminarComprobante(${index})">🗑️</button>
-            </div>
-
+        let botones = `
             <div class="estado-btns">
                 <button class="btn-entregado" onclick="setEstado(${index}, 'ENTREGADO')">Entregado</button>
                 <button class="btn-ausente" onclick="setEstado(${index}, 'AUSENTE')">Ausente</button>
                 <button class="btn-cancelado" onclick="setEstado(${index}, 'CANCELADO')">Cancelado</button>
                 <button class="btn-demorado" onclick="setEstado(${index}, 'DEMORADO')">Demorado</button>
             </div>
+        `;
 
-            <textarea id="obs_${index}" placeholder="Observación..." style="display:${c.estado === 'ENTREGADO' ? 'none' : 'block'}"></textarea>
+        if (c.estado !== "") {
+            botones = `
+                <div class="estado-btns">
+                    <button class="btn-estado-activo">${c.estado}</button>
+                    <button class="btn-editar" onclick="editarEstado(${index})">Editar</button>
+                </div>
+            `;
+        }
+
+        box.innerHTML = `
+            <div class="comp-header">
+                <div>
+                    <strong>${c.numero}</strong>
+                    <small>${c.tipo}</small>
+                    ${duplicadoTag}
+                </div>
+                <button class="btn-eliminar" onclick="eliminarComprobante(${index})">🗑️</button>
+            </div>
+
+            ${botones}
+
+            <textarea 
+                id="obs_${index}" 
+                placeholder="Observación..."
+                style="display:${c.estado === 'ENTREGADO' || c.estado === "" ? 'none' : 'block'}"
+            >${c.observacion}</textarea>
         `;
 
         cont.appendChild(box);
     });
 }
-
 
 // --------------------------------------------------
 // ELIMINAR COMPROBANTE
@@ -186,31 +226,40 @@ function eliminarComprobante(i) {
     renderComprobantes();
 }
 
-
 // --------------------------------------------------
 // SETEAR ESTADO
 // --------------------------------------------------
 function setEstado(i, estado) {
     comprobantes[i].estado = estado;
-
-    const obs = document.getElementById(`obs_${i}`);
-    obs.style.display = estado === "ENTREGADO" ? "none" : "block";
-
-    obs.oninput = () => comprobantes[i].observacion = obs.value;
-
     renderComprobantes();
 }
 
+// --------------------------------------------------
+// EDITAR ESTADO
+// --------------------------------------------------
+function editarEstado(i) {
+    comprobantes[i].estado = "";
+    comprobantes[i].observacion = "";
+    renderComprobantes();
+}
+
+// --------------------------------------------------
+// DETENER CÁMARA
+// --------------------------------------------------
+function detenerCamara() {
+    if (isScannerActive) {
+        Quagga.stop();
+        isScannerActive = false;
+    }
+    let cam = document.getElementById("cameraPreview");
+    if (cam) cam.remove();
+}
 
 // --------------------------------------------------
 // GENERAR QR
 // --------------------------------------------------
 document.getElementById("generarQR").onclick = () => {
-
-    if (isScannerActive) {
-        Quagga.stop();
-        isScannerActive = false;
-    }
+    detenerCamara();
 
     const json = {
         fecha: fechaRuta,
@@ -228,23 +277,20 @@ document.getElementById("generarQR").onclick = () => {
     document.getElementById("qrModal").style.display = "block";
 };
 
-
 // --------------------------------------------------
 // DESCARGAR QR
 // --------------------------------------------------
 document.getElementById("descargarQR").onclick = () => {
     const canvas = document.querySelector("#qr canvas");
     if (!canvas) return;
-
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png");
     a.download = "qr_ruta.png";
     a.click();
 };
 
-
 // --------------------------------------------------
-// CERRAR MODAL Y LIMPIAR
+// CERRAR MODAL
 // --------------------------------------------------
 function cerrarQR() {
     document.getElementById("qrModal").style.display = "none";
