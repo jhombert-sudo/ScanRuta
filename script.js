@@ -41,20 +41,19 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 
 
 // --------------------------------------------------
-// DETECTAR TIPO DE ENVÍO ML
+// TIPO ML REAL
 // --------------------------------------------------
 function detectarTipo(codigo) {
-    if (codigo.length >= 10) return "VENTAS ML FLEX";
-    if (codigo.length === 7 || codigo.length === 8) return "VENTAS ML MOTO";
+    if (codigo.length >= 12) return "VENTAS ML FLEX";
+    if (codigo.length >= 7 && codigo.length <= 10) return "VENTAS ML MOTO";
     return "DESCONOCIDO";
 }
 
 
 // --------------------------------------------------
-// BOTÓN INICIAR ESCANEO
+// INICIAR ESCANEO
 // --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
-
 
 async function iniciarScanner() {
 
@@ -68,11 +67,7 @@ async function iniciarScanner() {
     // Crear contenedor de cámara
     let camara = document.createElement("div");
     camara.id = "cameraPreview";
-    camara.className = "camara-scan";
-
-    let overlay = document.createElement("div");
-    overlay.className = "scanner-frame";
-    camara.appendChild(overlay);
+    camara.className = "camara-scan cuadrado-etiqueta";
 
     cont.prepend(camara);
 
@@ -88,7 +83,9 @@ async function iniciarScanner() {
     // ZXING
     const { BrowserMultiFormatReader, BrowserCodeReader } = window.ZXingBrowser;
 
-    codeReader = new BrowserMultiFormatReader();
+    codeReader = new BrowserMultiFormatReader({
+        delayBetweenScanAttempts: 200
+    });
 
     try {
         const devices = await BrowserCodeReader.listVideoInputDevices();
@@ -105,24 +102,24 @@ async function iniciarScanner() {
         );
     } catch (err) {
         console.error("Error al iniciar cámara:", err);
-        alert("No se pudo activar la cámara. Probá cerrar y abrir la página.");
+        alert("No se pudo activar la cámara.");
     }
 }
 
 
 // --------------------------------------------------
-// PROCESAR DETECCIÓN DE CÓDIGO
+// PROCESAR DETECCIÓN
 // --------------------------------------------------
 async function procesarDeteccion(codigo) {
 
     if (cooldown) return;
 
     cooldown = true;
-    setTimeout(() => (cooldown = false), 900);
+    setTimeout(() => (cooldown = false), 700);
 
     triggerScanEffect(codigo);
 
-    const frameBase64 = capturarFrame();
+    const frameBase64 = capturarFrameRecortado();
 
     const textoOCR = await extraerOCR(frameBase64);
     const direccion = parseDireccion(textoOCR);
@@ -132,17 +129,30 @@ async function procesarDeteccion(codigo) {
 
 
 // --------------------------------------------------
-// CAPTURA FRAME — MINIATURA
+// CAPTURA FRAME — RECORTE CUADRADO
 // --------------------------------------------------
-function capturarFrame() {
+function capturarFrameRecortado() {
     if (!videoElement) return "";
 
+    const videoWidth = videoElement.videoWidth;
+    const videoHeight = videoElement.videoHeight;
+
+    const side = Math.min(videoWidth, videoHeight);
+
+    const sx = (videoWidth - side) / 2;
+    const sy = (videoHeight - side) / 2;
+
     const canvas = document.createElement("canvas");
-    canvas.width = 300;
-    canvas.height = 300;
+    canvas.width = 450;
+    canvas.height = 450;
 
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(videoElement, 0, 0, 300, 300);
+
+    ctx.drawImage(
+        videoElement,
+        sx, sy, side, side,
+        0, 0, 450, 450
+    );
 
     return canvas.toDataURL("image/jpeg");
 }
@@ -171,11 +181,12 @@ function parseDireccion(texto) {
         .map(l => l.trim())
         .filter(l => l.length > 3);
 
-    const direccion = lineas.find(l => /\d/.test(l) && /[A-Za-z]/.test(l)) || "";
+    // Dirección real (Flex)
+    const direccion = lineas.find(l => /direccion/i.test(l))?.replace(/direccion:/i, "").trim() || "";
+
+    // Flex trae barrio/localidad debajo
     const localidad = lineas.find(l =>
-        l.toLowerCase().includes("buenos") ||
-        l.toLowerCase().includes("bs") ||
-        /\b\d{4}\b/.test(l)
+        l.includes("CABA") || l.includes("CAPITAL") || /\b\d{4}\b/.test(l)
     ) || "";
 
     return (direccion + " – " + localidad).trim();
@@ -183,7 +194,7 @@ function parseDireccion(texto) {
 
 
 // --------------------------------------------------
-// EFECTOS — Vibración + iluminación
+// EFECTOS
 // --------------------------------------------------
 function triggerScanEffect(codigo) {
     const cam = document.getElementById("cameraPreview");
@@ -338,7 +349,7 @@ function eliminarComprobante(i) {
 
 
 // --------------------------------------------------
-// BOTONES DE FLUJO
+// BOTONES FLUJO
 // --------------------------------------------------
 document.getElementById("btnFinalizarEscaneo").onclick = detenerCamara;
 document.getElementById("btnAgregarMas").onclick = iniciarScanner;
