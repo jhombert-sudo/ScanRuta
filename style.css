@@ -157,27 +157,31 @@ header h1 {
     overflow: hidden;
     margin-bottom: 10px;
     transition: box-shadow 0.25s;
-    height: 260px;
+    height: 320px;
     background: #000;
 }
 
-/* Marco guía profesional (esquinas) */
+/* 🔥 NUEVO: Vista cuadrada para capturar FLEX y MOTO */
+.cuadrado-etiqueta video {
+    object-fit: cover;
+}
+
+/* Marco guía cuadrado */
 .scanner-frame {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 80%;
-    height: 80px;
+    width: 65%;
+    height: 65%;
     transform: translate(-50%, -50%);
-    border: none;
 }
 
 .scanner-frame::before,
 .scanner-frame::after {
     content: "";
     position: absolute;
-    width: 25px;
-    height: 25px;
+    width: 35px;
+    height: 35px;
     border: 3px solid #00ff00;
 }
 
@@ -189,18 +193,17 @@ header h1 {
 }
 
 .scanner-frame::after {
-    right: -3px;
     bottom: -3px;
+    right: -3px;
     border-left: none;
     border-top: none;
 }
 
-/* Escaneo correcto → verde */
+/* Efectos */
 .scan-ok {
     box-shadow: 0 0 25px 6px #22ff22 inset !important;
 }
 
-/* Escaneo duplicado → rojo */
 .scan-duplicado {
     box-shadow: 0 0 25px 6px #ff2222 inset !important;
 }
@@ -229,11 +232,11 @@ header h1 {
 }
 
 /* -----------------------------------------------
-   MINIATURA (40px)
+   MINIATURA
 ------------------------------------------------ */
 .miniatura {
-    width: 40px;
-    height: 40px;
+    width: 45px;
+    height: 45px;
     border-radius: 6px;
     margin-right: 10px;
     object-fit: cover;
@@ -277,9 +280,7 @@ header h1 {
     flex: 1;
 }
 
-.info strong {
-    display: block;
-}
+.info strong { display: block; }
 
 .direccion {
     font-size: 13px;
@@ -296,7 +297,6 @@ header h1 {
     display: inline-block;
 }
 
-/* Etiqueta DUPLICADO */
 .duplicado-tag {
     background: #e82323;
     color: white;
@@ -336,13 +336,11 @@ header h1 {
     font-size: 15px;
 }
 
-/* Colores por estado */
 .btn-entregado { background: #23c55e; }
 .btn-ausente   { background: #f59e0b; }
 .btn-cancelado { background: #ef4444; }
 .btn-demorado  { background: #3b82f6; }
 
-/* Estado activo */
 .btn-estado-activo {
     flex: 1 1 100%;
     background: #222;
@@ -353,7 +351,6 @@ header h1 {
     text-align: center;
 }
 
-/* Botón editar */
 .btn-editar {
     flex: 1 1 100%;
     background: #888;
