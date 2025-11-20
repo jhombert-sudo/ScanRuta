@@ -5,11 +5,12 @@ let comprobantes = [];
 let choferNombre = "";
 let fechaRuta = "";
 
-// Anti-duplicado
-let codigosEscaneados = new Set();
+let scanning = false;
+let isScannerActive = false;
 
-// BarcodeDetector disponible?
-const barcodeSupported = ('BarcodeDetector' in window);
+// Para detectar duplicados
+let historialCodigos = [];
+
 
 // --------------------------------------------------
 // POPUP INICIAL
@@ -29,127 +30,162 @@ document.getElementById("btnIniciarRuta").onclick = () => {
     document.getElementById("popupInicio").style.display = "none";
 };
 
+
 // --------------------------------------------------
-// CLASIFICACIÓN AUTOMÁTICA (ESTILO MERCADO LIBRE)
+// CLASIFICACIÓN AUTOMÁTICA
 // --------------------------------------------------
 function detectarTipo(codigo) {
     if (codigo.length >= 10) return "VENTAS ML FLEX";
-    if (codigo.length === 7 || codigo.length === 8) return "VENTAS ML MOTO"; 
+    if (codigo.length === 7 || codigo.length === 8) return "VENTAS ML MOTO";
     return "DESCONOCIDO";
 }
 
-// --------------------------------------------------
-// ESCANEO CONTINUO
-// --------------------------------------------------
-let videoStream;
-let scanning = false;
 
+// --------------------------------------------------
+// INICIAR ESCANEO (QUAGGAJS)
+// --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
 
-async function iniciarScanner() {
-
-    if (!barcodeSupported) {
-        alert("Tu navegador no soporta BarcodeDetector. Probá con Chrome o Android.");
+function iniciarScanner() {
+    if (isScannerActive) {
+        alert("El escáner ya está activo.");
         return;
     }
 
+    isScannerActive = true;
     scanning = true;
 
-    const video = document.createElement("video");
-    video.setAttribute("autoplay", true);
-    video.setAttribute("muted", true);
-    video.setAttribute("playsinline", true);
-    video.style.width = "100%";
+    const cont = document.getElementById("listaComprobantes");
 
-    document.getElementById("listaComprobantes").prepend(video);
+    // Inserta un div donde se va a ver la cámara
+    const camara = document.createElement("div");
+    camara.id = "cameraPreview";
+    camara.style.width = "100%";
+    camara.style.height = "280px";
+    camara.style.background = "#000";
+    cont.prepend(camara);
 
-    videoStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
+    // Activa Quagga
+    Quagga.init({
+        inputStream: {
+            type: "LiveStream",
+            constraints: { facingMode: "environment" },
+            target: document.querySelector('#cameraPreview')
+        },
+        decoder: {
+            readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader"]
+        }
+    }, function (err) {
+        if (err) {
+            console.error(err);
+            alert("Error iniciando cámara");
+            return;
+        }
+        Quagga.start();
     });
 
-    video.srcObject = videoStream;
+    // Evento cuando detecta un código
+    Quagga.onDetected((data) => {
+        if (!data || !data.codeResult) return;
 
-    const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'code_39'] });
+        const codigo = data.codeResult.code;
 
-    // Loop continuo
-    async function scanLoop() {
-        if (!scanning) return;
-
-        try {
-            const barcodes = await detector.detect(video);
-
-            for (const barcode of barcodes) {
-                const codigo = barcode.rawValue.trim();
-
-                // Anti duplicados
-                if (!codigosEscaneados.has(codigo)) {
-                    codigosEscaneados.add(codigo);
-                    agregarComprobante(codigo);
-
-                    // beep
-                    const audio = new Audio(
-                        "https://actions.google.com/sounds/v1/cartoon/pop.ogg"
-                    );
-                    audio.volume = 0.3;
-                    audio.play();
-                }
-            }
-        } catch (e) {
-            console.log("Error detectando:", e);
-        }
-
-        requestAnimationFrame(scanLoop);
-    }
-
-    scanLoop();
+        agregarComprobante(codigo);
+    });
 }
 
+
 // --------------------------------------------------
-// AGREGAR COMPROBANTE AUTOMÁTICAMENTE
+// AGREGAR COMPROBANTE
 // --------------------------------------------------
 function agregarComprobante(codigo) {
 
-    const tipo = detectarTipo(codigo);
+    const duplicado = historialCodigos.includes(codigo);
+
+    historialCodigos.push(codigo);
 
     comprobantes.push({
         numero: codigo,
-        tipo: tipo,
+        tipo: detectarTipo(codigo),
         estado: "",
-        observacion: ""
+        observacion: "",
+        duplicado: duplicado ? true : false
     });
 
+    actualizarContador();
     renderComprobantes();
+
+    // Beep
+    const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
+    audio.volume = 0.3;
+    audio.play();
 }
 
+
 // --------------------------------------------------
-// RENDER LISTADO
+// ACTUALIZAR CONTADOR
+// --------------------------------------------------
+function actualizarContador() {
+    document.getElementById("contador").innerText =
+        `Escaneados: ${comprobantes.length}`;
+}
+
+
+// --------------------------------------------------
+// RENDERIZAR LISTA
 // --------------------------------------------------
 function renderComprobantes() {
     const cont = document.getElementById("listaComprobantes");
 
-    // Borramos todos los elementos EXCEPTO el video (si existe)
-    const children = Array.from(cont.children).filter(el => el.tagName !== "VIDEO");
-    children.forEach(el => el.remove());
+    // Mantener la cámara arriba
+    const camara = document.getElementById("cameraPreview");
+
+    cont.innerHTML = "";
+    if (camara) cont.prepend(camara);
 
     comprobantes.forEach((c, index) => {
-        const div = document.createElement("div");
-        div.className = "comprobante";
+        const box = document.createElement("div");
+        box.className = "comprobante";
 
-        div.innerHTML = `
-            <strong>Comprobante:</strong> ${c.numero}<br>
-            <strong>Tipo:</strong> ${c.tipo}
-            <div class="estado-btns">
-                <button onclick="setEstado(${index}, 'ENTREGADO')">ENTREGADO</button>
-                <button onclick="setEstado(${index}, 'AUSENTE')">AUSENTE</button>
-                <button onclick="setEstado(${index}, 'CANCELADO')">CANCELADO</button>
-                <button onclick="setEstado(${index}, 'DEMORADO')">DEMORADO</button>
+        let marcaDuplicado = c.duplicado ?
+            `<span class="duplicado-tag">DUPLICADO</span>` :
+            "";
+
+        box.innerHTML = `
+            <div class="comp-header">
+                <div>
+                    <strong>${c.numero}</strong> 
+                    <small>${c.tipo}</small>
+                    ${marcaDuplicado}
+                </div>
+
+                <button class="btn-eliminar" onclick="eliminarComprobante(${index})">🗑️</button>
             </div>
-            <textarea id="obs_${index}" placeholder="Observación..."></textarea>
+
+            <div class="estado-btns">
+                <button class="btn-entregado" onclick="setEstado(${index}, 'ENTREGADO')">Entregado</button>
+                <button class="btn-ausente" onclick="setEstado(${index}, 'AUSENTE')">Ausente</button>
+                <button class="btn-cancelado" onclick="setEstado(${index}, 'CANCELADO')">Cancelado</button>
+                <button class="btn-demorado" onclick="setEstado(${index}, 'DEMORADO')">Demorado</button>
+            </div>
+
+            <textarea id="obs_${index}" placeholder="Observación..." style="display:${c.estado === 'ENTREGADO' ? 'none' : 'block'}"></textarea>
         `;
 
-        cont.appendChild(div);
+        cont.appendChild(box);
     });
 }
+
+
+// --------------------------------------------------
+// ELIMINAR COMPROBANTE
+// --------------------------------------------------
+function eliminarComprobante(i) {
+    comprobantes.splice(i, 1);
+    actualizarContador();
+    renderComprobantes();
+}
+
 
 // --------------------------------------------------
 // SETEAR ESTADO
@@ -165,14 +201,15 @@ function setEstado(i, estado) {
     renderComprobantes();
 }
 
+
 // --------------------------------------------------
 // GENERAR QR
 // --------------------------------------------------
 document.getElementById("generarQR").onclick = () => {
 
-    scanning = false;
-    if (videoStream) {
-        videoStream.getTracks().forEach(t => t.stop());
+    if (isScannerActive) {
+        Quagga.stop();
+        isScannerActive = false;
     }
 
     const json = {
@@ -181,17 +218,16 @@ document.getElementById("generarQR").onclick = () => {
         comprobantes
     };
 
-    const textoQR = JSON.stringify(json);
-
     document.getElementById("qr").innerHTML = "";
     new QRCode(document.getElementById("qr"), {
-        text: textoQR,
-        width: 256,
-        height: 256
+        text: JSON.stringify(json),
+        width: 260,
+        height: 260
     });
 
     document.getElementById("qrModal").style.display = "block";
 };
+
 
 // --------------------------------------------------
 // DESCARGAR QR
@@ -200,25 +236,20 @@ document.getElementById("descargarQR").onclick = () => {
     const canvas = document.querySelector("#qr canvas");
     if (!canvas) return;
 
-    const url = canvas.toDataURL("image/png");
     const a = document.createElement("a");
-    a.href = url;
+    a.href = canvas.toDataURL("image/png");
     a.download = "qr_ruta.png";
     a.click();
 };
 
+
 // --------------------------------------------------
-// CERRAR MODAL Y LIMPIAR DATOS
+// CERRAR MODAL Y LIMPIAR
 // --------------------------------------------------
 function cerrarQR() {
-
     document.getElementById("qrModal").style.display = "none";
-
-    // Limpiar todo para nueva ruta
     comprobantes = [];
-    codigosEscaneados.clear();
-
+    historialCodigos = [];
+    actualizarContador();
     renderComprobantes();
-
-    // Reiniciar todo menos datos del chofer
 }
