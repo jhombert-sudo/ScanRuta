@@ -13,7 +13,6 @@
     <!-- Librería QuaggaJS (ESCANEO CONTINUO) -->
     <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
-    <!-- Manifest (PWA más adelante) -->
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -36,16 +35,26 @@
     <header>
         <h1>Control de Ruta</h1>
 
-        <!-- Este botón ahora abre QuaggaJS -->
+        <!-- Botón principal para abrir cámara -->
         <button id="scanBtn">📷 Escanear códigos</button>
 
-        <!-- Contador dinámico -->
+        <!-- Contador -->
         <div id="contador" class="contador">Escaneados: 0</div>
     </header>
 
     <section id="comprobantesContainer">
+
+        <!-- BOTONES DE FLUJO (arriba de la lista) -->
+        <div id="accionesEscaneo" class="acciones-container" style="display:none;">
+            <button id="btnFinalizarEscaneo" class="btn-finalizar">Finalizar escaneo</button>
+            <button id="btnAgregarMas" class="btn-agregar">➕ Agregar comprobantes</button>
+        </div>
+
         <h2>Comprobantes procesados</h2>
+
+        <!-- Contenedor donde aparece cámara y lista -->
         <div id="listaComprobantes"></div>
+
     </section>
 
     <footer>
@@ -62,8 +71,6 @@
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL -->
     <script src="script.js"></script>
-
 </body>
 </html>
