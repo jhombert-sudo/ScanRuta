@@ -10,8 +10,11 @@
     <!-- Librería QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- Quagga (Escaneo continuo) -->
+    <!-- QuaggaJS (Escaneo continuo) -->
     <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+
+    <!-- Tesseract (OCR dirección de etiquetas ML) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <link rel="manifest" href="manifest.json">
 </head>
@@ -35,7 +38,7 @@
     <header>
         <h1>Control de Ruta</h1>
 
-        <!-- Botón para iniciar escaneo -->
+        <!-- Botón para iniciar cámara -->
         <button id="scanBtn">📷 Escanear códigos</button>
 
         <!-- Contador -->
@@ -44,7 +47,7 @@
 
     <section id="comprobantesContainer">
 
-        <!-- BOTONES DE FLUJO (solo visibles cuando la cámara está activa) -->
+        <!-- BOTONES DEL FLUJO A (aparecen solo con cámara activa) -->
         <div id="accionesEscaneo" class="acciones-container" style="display:none;">
             <button id="btnFinalizarEscaneo" class="btn-finalizar">⛔ Finalizar escaneo</button>
             <button id="btnAgregarMas" class="btn-agregar">➕ Agregar comprobantes</button>
@@ -52,7 +55,7 @@
 
         <h2>Comprobantes procesados</h2>
 
-        <!-- Cámara + comprobantes -->
+        <!-- Aquí aparece la cámara + la lista -->
         <div id="listaComprobantes"></div>
 
     </section>
@@ -72,7 +75,7 @@
     </div>
 
     <!-- MODAL PARA MINIATURA AMPLIADA -->
-    <div id="visorModal" class="visor-modal">
+    <div id="visorModal" class="visor-modal" style="display:none;">
         <span id="cerrarVisor" class="cerrar-visor">✖</span>
         <img id="visorImg" class="visor-img" src="">
     </div>
