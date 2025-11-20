@@ -4,10 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Ruta</title>
+
     <link rel="stylesheet" href="style.css">
 
+    <!-- Librería QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
+    <!-- Librería QuaggaJS (ESCANEO CONTINUO) -->
+    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+
+    <!-- Manifest (PWA más adelante) -->
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -29,8 +35,12 @@
 
     <header>
         <h1>Control de Ruta</h1>
-        <!-- AHORA ESTE BOTÓN SÍ ACTIVA LA CÁMARA EN VIVO -->
+
+        <!-- Este botón ahora abre QuaggaJS -->
         <button id="scanBtn">📷 Escanear códigos</button>
+
+        <!-- Contador dinámico -->
+        <div id="contador" class="contador">Escaneados: 0</div>
     </header>
 
     <section id="comprobantesContainer">
@@ -52,6 +62,7 @@
         </div>
     </div>
 
+    <!-- SCRIPT PRINCIPAL -->
     <script src="script.js"></script>
 
 </body>
