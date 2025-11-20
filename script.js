@@ -10,10 +10,10 @@ let cooldown = false;
 
 let historialCodigos = []; // Para duplicados
 
-// OCR CONFIG (solo dirección + localidad)
+// OCR CONFIG
 const OCR_CONFIG = {
     lang: "spa",
-    tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 -.,"
+    tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 -.,/#"
 };
 
 // --------------------------------------------------
@@ -32,7 +32,7 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 };
 
 // --------------------------------------------------
-// DETECTAR TIPO FLEX/MOTO
+// CLASIFICACIÓN AUTOMÁTICA (TIPO ML)
 // --------------------------------------------------
 function detectarTipo(codigo) {
     if (codigo.length >= 10) return "VENTAS ML FLEX";
@@ -47,12 +47,11 @@ document.getElementById("scanBtn").onclick = iniciarScanner;
 
 function iniciarScanner() {
     detenerCamara();
-
     isScannerActive = true;
-
     document.getElementById("accionesEscaneo").style.display = "block";
 
     const cont = document.getElementById("listaComprobantes");
+
     let camara = document.createElement("div");
     camara.id = "cameraPreview";
     camara.className = "camara-scan";
@@ -65,13 +64,21 @@ function iniciarScanner() {
 
     Quagga.init({
         inputStream: { type: "LiveStream", constraints: { facingMode: "environment" }, target: camara },
-        decoder: { readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader"] },
+        decoder: {
+            readers: [
+                "code_128_reader",
+                "ean_reader",
+                "ean_8_reader",
+                "code_39_reader"
+            ]
+        },
         locate: true
     }, err => {
         if (err) return alert("Error iniciando cámara");
         Quagga.start();
     });
 
+    // DETECCIÓN
     Quagga.onDetected(async data => {
         if (!data?.codeResult) return;
         if (cooldown) return;
@@ -83,7 +90,6 @@ function iniciarScanner() {
         triggerScanEffect(codigo);
 
         const frameBase64 = capturarFrame();
-
         const textoOCR = await extraerOCR(frameBase64);
         const direccion = parseDireccion(textoOCR);
 
@@ -92,24 +98,24 @@ function iniciarScanner() {
 }
 
 // --------------------------------------------------
-// CAPTURAR MINIATURA DEL VIDEO
+// CAPTURAR FRAME MINIATURA
 // --------------------------------------------------
 function capturarFrame() {
     const video = document.querySelector("#cameraPreview video");
     if (!video) return "";
 
     const canvas = document.createElement("canvas");
-    canvas.width = 200;
-    canvas.height = 200;
+    canvas.width = 300;
+    canvas.height = 300;
 
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, 200, 200);
+    ctx.drawImage(video, 0, 0, 300, 300);
 
     return canvas.toDataURL("image/jpeg");
 }
 
 // --------------------------------------------------
-// OCR DIRECCIÓN + LOCALIDAD
+// OCR DIRECCIÓN (Patrón A: dirección real)
 // --------------------------------------------------
 async function extraerOCR(imgBase64) {
     try {
@@ -120,15 +126,24 @@ async function extraerOCR(imgBase64) {
     }
 }
 
-// Limpieza básica de OCR
 function parseDireccion(texto) {
     if (!texto) return "";
 
-    const lineas = texto.split("\n").map(t => t.trim()).filter(t => t.length > 3);
+    let lineas = texto
+        .split("\n")
+        .map(l => l.trim())
+        .filter(l => l.length > 4);
 
-    // Buscar línea con números + letras (dirección)
-    let direccion = lineas.find(l => /\d/.test(l) && /[A-Za-z]/.test(l)) || "";
-    let localidad = lineas.find(l => l.toLowerCase().includes("bs as") || l.length > 6) || "";
+    // Dirección: línea que tenga letras + números
+    const direccion = lineas.find(l => /\d/.test(l) && /[A-Za-z]/.test(l)) || "";
+
+    // Localidad: cualquier línea que tenga ciudad, código postal o provincia
+    const localidad = lineas.find(l =>
+        l.toLowerCase().includes("bs") ||
+        l.toLowerCase().includes("buenos") ||
+        /\b\d{4}\b/.test(l) ||
+        l.length > 7
+    ) || "";
 
     return (direccion + " – " + localidad).trim();
 }
@@ -202,6 +217,7 @@ function renderComprobantes() {
     const camara = document.getElementById("cameraPreview");
 
     cont.innerHTML = "";
+
     if (camara) cont.prepend(camara);
 
     comprobantes.forEach((c, index) => {
@@ -209,28 +225,34 @@ function renderComprobantes() {
         box.className = "comprobante fadeIn";
 
         const duplicadoTag = c.duplicado ? `<span class="duplicado-tag">DUPLICADO</span>` : "";
-        const domicilioTag = c.mismoDomicilio ? `<span class="domicilio-tag">MISMO DOMICILIO – SE PAGA 1</span>` : "";
+        const domicilioTag = c.mismoDomicilio ? `<span class="domicilio-tag">Misimo domicilio – se paga 1</span>` : "";
 
-        const botones = c.estado === "" ? `
+        const botones = c.estado === "" ?
+            `
             <div class="estado-btns">
                 <button class="btn-entregado" onclick="setEstado(${index}, 'ENTREGADO')">Entregado</button>
                 <button class="btn-ausente" onclick="setEstado(${index}, 'AUSENTE')">Ausente</button>
                 <button class="btn-cancelado" onclick="setEstado(${index}, 'CANCELADO')">Cancelado</button>
                 <button class="btn-demorado" onclick="setEstado(${index}, 'DEMORADO')">Demorado</button>
             </div>` :
-            `<div class="estado-btns">
+            `
+            <div class="estado-btns">
                 <button class="btn-estado-activo">${c.estado}</button>
                 <button class="btn-editar" onclick="editarEstado(${index})">Editar</button>
-            </div>`;
+            </div>
+            `;
 
         box.innerHTML = `
             <div class="comp-header">
+
                 <img src="${c.miniatura}" class="miniatura" onclick="verMiniatura('${c.miniatura}')">
 
                 <div class="info">
                     <strong>${c.numero}</strong>
                     <small>${c.tipo}</small>
+
                     <div class="direccion">${c.direccion || ""}</div>
+
                     ${duplicadoTag}
                     ${domicilioTag}
                 </div>
@@ -284,7 +306,7 @@ function eliminarComprobante(i) {
 }
 
 // --------------------------------------------------
-// FLUJO
+// BOTONES DE FLUJO
 // --------------------------------------------------
 document.getElementById("btnFinalizarEscaneo").onclick = detenerCamara;
 document.getElementById("btnAgregarMas").onclick = iniciarScanner;
@@ -333,7 +355,7 @@ document.getElementById("descargarQR").onclick = () => {
 };
 
 // --------------------------------------------------
-// CERRAR MODAL
+// CERRAR MODAL QR
 // --------------------------------------------------
 function cerrarQR() {
     document.getElementById("qrModal").style.display = "none";
