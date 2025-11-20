@@ -12,6 +12,7 @@ let cooldown = false;
 let historialCodigos = [];
 
 
+
 // --------------------------------------------------
 // POPUP INICIAL
 // --------------------------------------------------
@@ -26,11 +27,13 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 
     choferNombre = nombre;
     fechaRuta = fecha;
+
     document.getElementById("popupInicio").style.display = "none";
 };
 
+
 // --------------------------------------------------
-// CLASIFICACIÓN AUTOMÁTICA
+// CLASIFICACIÓN AUTOMÁTICA (TIPO ML)
 // --------------------------------------------------
 function detectarTipo(codigo) {
     if (codigo.length >= 10) return "VENTAS ML FLEX";
@@ -38,23 +41,38 @@ function detectarTipo(codigo) {
     return "DESCONOCIDO";
 }
 
+
+
 // --------------------------------------------------
-// INICIAR ESCÁNER
+// BOTÓN PRINCIPAL PARA INICIAR ESCANEO
 // --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
 
+
 function iniciarScanner() {
-    if (isScannerActive) return;
+
+    detenerCamara(); // por si había otra activa
 
     isScannerActive = true;
 
+    // MOSTRAR BOTONES DEL FLUJO A
+    document.getElementById("accionesEscaneo").style.display = "block";
+
     const cont = document.getElementById("listaComprobantes");
 
+    // Crear contenedor de cámara
     let camara = document.createElement("div");
     camara.id = "cameraPreview";
     camara.className = "camara-scan";
+
+    // Crear rectángulo guía
+    let overlay = document.createElement("div");
+    overlay.className = "scanner-frame";
+    camara.appendChild(overlay);
+
     cont.prepend(camara);
 
+    // Inicializar Quagga
     Quagga.init({
         inputStream: {
             type: "LiveStream",
@@ -62,8 +80,14 @@ function iniciarScanner() {
             target: camara
         },
         decoder: {
-            readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader"]
-        }
+            readers: [
+                "code_128_reader",
+                "ean_reader",
+                "ean_8_reader",
+                "code_39_reader"
+            ]
+        },
+        locate: true
     }, function (err) {
         if (err) {
             console.log(err);
@@ -73,7 +97,8 @@ function iniciarScanner() {
         Quagga.start();
     });
 
-    // DETECCIÓN + ANIMACIONES
+
+    // DETECCIÓN
     Quagga.onDetected((data) => {
         if (!data || !data.codeResult) return;
 
@@ -88,8 +113,10 @@ function iniciarScanner() {
     });
 }
 
+
+
 // --------------------------------------------------
-// EFECTOS DE ESCANEO
+// EFECTOS VISUALES Y VIBRACIÓN
 // --------------------------------------------------
 function triggerScanEffect(codigo) {
 
@@ -97,7 +124,7 @@ function triggerScanEffect(codigo) {
 
     let esDuplicado = historialCodigos.includes(codigo);
 
-    if (navigator.vibrate) navigator.vibrate(esDuplicado ? 300 : 150);
+    if (navigator.vibrate) navigator.vibrate(esDuplicado ? 350 : 120);
 
     if (esDuplicado) {
         cam.classList.add("scan-duplicado");
@@ -112,6 +139,7 @@ function triggerScanEffect(codigo) {
     }, 500);
 }
 
+
 // --------------------------------------------------
 // MENSAJE FLOTANTE DUPLICADO
 // --------------------------------------------------
@@ -125,6 +153,8 @@ function mostrarMensajeFlotante(texto) {
     setTimeout(() => msg.classList.add("show"), 10);
     setTimeout(() => msg.remove(), 1600);
 }
+
+
 
 // --------------------------------------------------
 // AGREGAR COMPROBANTE
@@ -151,6 +181,8 @@ function agregarComprobante(codigo) {
     audio.play();
 }
 
+
+
 // --------------------------------------------------
 // CONTADOR
 // --------------------------------------------------
@@ -159,10 +191,13 @@ function actualizarContador() {
         `Escaneados: ${comprobantes.length}`;
 }
 
+
+
 // --------------------------------------------------
 // RENDER DE LISTA
 // --------------------------------------------------
 function renderComprobantes() {
+
     const cont = document.getElementById("listaComprobantes");
     const camara = document.getElementById("cameraPreview");
 
@@ -170,6 +205,7 @@ function renderComprobantes() {
     if (camara) cont.prepend(camara);
 
     comprobantes.forEach((c, index) => {
+
         let box = document.createElement("div");
         box.className = "comprobante fadeIn";
 
@@ -207,15 +243,17 @@ function renderComprobantes() {
             ${botones}
 
             <textarea 
-                id="obs_${index}" 
+                id="obs_${index}"
                 placeholder="Observación..."
-                style="display:${c.estado === 'ENTREGADO' || c.estado === "" ? 'none' : 'block'}"
+                style="display:${c.estado === 'ENTREGADO' || c.estado === '' ? 'none' : 'block'}"
             >${c.observacion}</textarea>
         `;
 
         cont.appendChild(box);
     });
 }
+
+
 
 // --------------------------------------------------
 // ELIMINAR COMPROBANTE
@@ -226,13 +264,19 @@ function eliminarComprobante(i) {
     renderComprobantes();
 }
 
+
+
 // --------------------------------------------------
 // SETEAR ESTADO
 // --------------------------------------------------
 function setEstado(i, estado) {
+
     comprobantes[i].estado = estado;
+
     renderComprobantes();
 }
+
+
 
 // --------------------------------------------------
 // EDITAR ESTADO
@@ -243,22 +287,47 @@ function editarEstado(i) {
     renderComprobantes();
 }
 
+
+
+// --------------------------------------------------
+// BOTÓN FINALIZAR ESCANEO
+// --------------------------------------------------
+document.getElementById("btnFinalizarEscaneo").onclick = () => {
+    detenerCamara();
+};
+
+
+
+// --------------------------------------------------
+// BOTÓN AGREGAR MÁS
+// --------------------------------------------------
+document.getElementById("btnAgregarMas").onclick = () => {
+    iniciarScanner();
+};
+
+
+
 // --------------------------------------------------
 // DETENER CÁMARA
 // --------------------------------------------------
 function detenerCamara() {
+
     if (isScannerActive) {
         Quagga.stop();
         isScannerActive = false;
     }
+
     let cam = document.getElementById("cameraPreview");
     if (cam) cam.remove();
 }
+
+
 
 // --------------------------------------------------
 // GENERAR QR
 // --------------------------------------------------
 document.getElementById("generarQR").onclick = () => {
+
     detenerCamara();
 
     const json = {
@@ -277,25 +346,33 @@ document.getElementById("generarQR").onclick = () => {
     document.getElementById("qrModal").style.display = "block";
 };
 
+
+
 // --------------------------------------------------
 // DESCARGAR QR
 // --------------------------------------------------
 document.getElementById("descargarQR").onclick = () => {
     const canvas = document.querySelector("#qr canvas");
     if (!canvas) return;
+
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png");
     a.download = "qr_ruta.png";
     a.click();
 };
 
+
+
 // --------------------------------------------------
 // CERRAR MODAL
 // --------------------------------------------------
 function cerrarQR() {
+
     document.getElementById("qrModal").style.display = "none";
+
     comprobantes = [];
     historialCodigos = [];
+
     actualizarContador();
     renderComprobantes();
 }
