@@ -5,18 +5,21 @@ let comprobantes = [];
 let historialCodigos = [];
 let choferNombre = "";
 let fechaRuta = "";
-let scanner = null;
 
+let scanner = null;
 let cooldown = false;
 let isScannerActive = false;
 
 
 // --------------------------------------------------
-// OPCIONES ESCÁNER
+// OPCIONES ESCÁNER (CUADRADO GRANDE PARA ETIQUETAS FLEX)
 // --------------------------------------------------
 const html5QrConfig = {
     fps: 12,
-    qrbox: { width: 250, height: 250 },
+    qrbox: {
+        width: Math.min(window.innerWidth * 0.78, 380),
+        height: Math.min(window.innerWidth * 0.78, 380)
+    },
     aspectRatio: 1.0,
     rememberLastUsedCamera: true
 };
@@ -49,11 +52,10 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 
 
 // --------------------------------------------------
-// DETECTAR TIPO
+// DETECTAR TIPO (QR → FLEX / BARRAS → MOTO)
 // --------------------------------------------------
 function detectarTipo(codigo, esQR) {
-    if (esQR) return "VENTAS ML FLEX";
-    return "VENTAS ML MOTO";
+    return esQR ? "VENTAS ML FLEX" : "VENTAS ML MOTO";
 }
 
 
@@ -70,18 +72,15 @@ async function iniciarScanner() {
     document.getElementById("accionesEscaneo").style.display = "block";
 
     const preview = document.getElementById("cameraPreview");
-    preview.innerHTML = ""; // reset
+    preview.innerHTML = "";
 
     scanner = new Html5Qrcode("cameraPreview");
 
     try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (!cameras.length) {
-            alert("No se detectó cámara.");
-            return;
-        }
+        const cams = await Html5Qrcode.getCameras();
+        if (!cams.length) return alert("No se detectó cámara.");
 
-        const camaraTrasera = cameras[cameras.length - 1].id;
+        const camaraTrasera = cams[cams.length - 1].id;
 
         await scanner.start(
             camaraTrasera,
@@ -91,29 +90,27 @@ async function iniciarScanner() {
         );
 
     } catch (err) {
-        console.error("Error al activar cámara:", err);
+        console.error("Error:", err);
         alert("No se pudo activar la cámara");
     }
 }
 
 
 // --------------------------------------------------
-// CALLBACKS DE ESCANEO
+// CALLBACKS SCAN
 // --------------------------------------------------
 async function onScanSuccess(decodedText, decodedResult) {
 
     if (cooldown) return;
     cooldown = true;
-    setTimeout(() => cooldown = false, 700);
+    setTimeout(() => (cooldown = false), 800);
 
     const esQR = decodedResult.result.format.formatName === "QR_CODE";
 
     triggerScanEffect(decodedText);
 
-    // Miniatura cuadrada
     const miniatura = await capturarMiniatura();
 
-    // Dirección solo en QR / FLEX
     let direccion = "";
     if (esQR) {
         const textoOCR = await extraerOCR(miniatura);
@@ -123,15 +120,16 @@ async function onScanSuccess(decodedText, decodedResult) {
     agregarComprobante(decodedText, miniatura, direccion, esQR);
 }
 
-function onScanFailure(error) {
-    // ignorar errores pequeños
+function onScanFailure(err) {
+    // ignoramos errores menores
 }
 
 
 // --------------------------------------------------
-// MINIATURA
+// CAPTURA MINIATURA (900x900 MEJOR OCR)
 // --------------------------------------------------
 async function capturarMiniatura() {
+
     const video = document.querySelector("#cameraPreview video");
     if (!video) return "";
 
@@ -143,18 +141,18 @@ async function capturarMiniatura() {
     const sy = (h - side) / 2;
 
     const canvas = document.createElement("canvas");
-    canvas.width = 500;
-    canvas.height = 500;
+    canvas.width = 900;
+    canvas.height = 900;
 
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, sx, sy, side, side, 0, 0, 500, 500);
+    ctx.drawImage(video, sx, sy, side, side, 0, 0, 900, 900);
 
     return canvas.toDataURL("image/jpeg");
 }
 
 
 // --------------------------------------------------
-// OCR DIRECCIÓN (FLEX)
+// OCR FLEX
 // --------------------------------------------------
 async function extraerOCR(imgBase64) {
     try {
@@ -167,12 +165,13 @@ async function extraerOCR(imgBase64) {
 }
 
 function parseDireccion(texto) {
+
     if (!texto) return "";
 
     let lineas = texto
         .split("\n")
         .map(l => l.trim())
-        .filter(l => l.length > 3);
+        .filter(l => l.length > 4);
 
     const direccion = lineas.find(l =>
         /\d/.test(l) && /[A-Za-z]/.test(l)
@@ -189,14 +188,14 @@ function parseDireccion(texto) {
 
 
 // --------------------------------------------------
-// EFECTOS
+// EFECTOS (vibración, duplicados)
 // --------------------------------------------------
 function triggerScanEffect(codigo) {
-    const cam = document.getElementById("cameraPreview");
 
+    const cam = document.getElementById("cameraPreview");
     const duplicado = historialCodigos.includes(codigo);
 
-    navigator.vibrate?.(duplicado ? 350 : 150);
+    navigator.vibrate?.(duplicado ? 320 : 140);
 
     cam.classList.add(duplicado ? "scan-duplicado" : "scan-ok");
 
@@ -205,15 +204,14 @@ function triggerScanEffect(codigo) {
     setTimeout(() => cam.classList.remove("scan-ok", "scan-duplicado"), 450);
 }
 
-function mostrarMensajeFlotante(texto) {
-    const msg = document.createElement("div");
-    msg.className = "mensaje-duplicado";
-    msg.innerText = texto;
+function mostrarMensajeFlotante(msg) {
+    const div = document.createElement("div");
+    div.className = "mensaje-duplicado";
+    div.innerText = msg;
+    document.body.appendChild(div);
 
-    document.body.appendChild(msg);
-
-    setTimeout(() => msg.classList.add("show"), 10);
-    setTimeout(() => msg.remove(), 1600);
+    setTimeout(() => div.classList.add("show"), 20);
+    setTimeout(() => div.remove(), 1500);
 }
 
 
@@ -257,23 +255,20 @@ function actualizarContador() {
 
 
 // --------------------------------------------------
-// RENDER DE LISTA
+// RENDER LISTA
 // --------------------------------------------------
 function renderComprobantes() {
 
     const cont = document.getElementById("listaComprobantes");
-
     cont.innerHTML = "";
 
     comprobantes.forEach((c, i) => {
 
         const duplicadoTag = c.duplicado
-            ? `<span class="duplicado-tag">DUPLICADO</span>`
-            : "";
+            ? `<span class="duplicado-tag">DUPLICADO</span>` : "";
 
         const domicilioTag = c.mismoDomicilio
-            ? `<span class="domicilio-tag">MISMO DOMICILIO – SE PAGA 1</span>`
-            : "";
+            ? `<span class="domicilio-tag">MISMO DOMICILIO — SE PAGA 1</span>` : "";
 
         const botones = c.estado === ""
             ? `
@@ -295,7 +290,8 @@ function renderComprobantes() {
         box.innerHTML = `
             <div class="comp-header">
 
-                <img src="${c.miniatura}" class="miniatura" onclick="verMiniatura('${c.miniatura}')">
+                <img src="${c.miniatura}" class="miniatura"
+                     onclick="verMiniatura('${c.miniatura}')">
 
                 <div class="info">
                     <strong>${c.numero}</strong>
@@ -305,14 +301,17 @@ function renderComprobantes() {
                     ${domicilioTag}
                 </div>
 
-                <button onclick="eliminarComprobante(${i})" class="btn-eliminar">🗑️</button>
+                <button onclick="eliminarComprobante(${i})"
+                        class="btn-eliminar">🗑️</button>
             </div>
 
             ${botones}
 
             <textarea id="obs_${i}"
                 placeholder="Observación..."
-                style="display:${c.estado === "" || c.estado === "ENTREGADO" ? "none" : "block"}"
+                style="display:${c.estado === "" || c.estado === "ENTREGADO"
+                    ? "none"
+                    : "block"}"
             >${c.observacion}</textarea>
         `;
 
@@ -322,7 +321,7 @@ function renderComprobantes() {
 
 
 // --------------------------------------------------
-// MINIATURA MODAL
+// MINIATURA → MODAL
 // --------------------------------------------------
 function verMiniatura(img) {
     document.getElementById("visorModal").style.display = "flex";
