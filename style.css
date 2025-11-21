@@ -31,11 +31,6 @@ body {
     box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
-.popup-box h2 {
-    margin-top: 0;
-    font-size: 22px;
-}
-
 .popup-box input {
     width: 100%;
     padding: 12px;
@@ -69,7 +64,6 @@ header h1 {
     font-size: 22px;
 }
 
-/* Botón escaneo */
 #scanBtn {
     background: #22aa22;
     width: 90%;
@@ -80,7 +74,6 @@ header h1 {
     color: #fff;
 }
 
-/* Contador */
 #contador {
     margin-top: 8px;
     background: #fff;
@@ -95,7 +88,7 @@ header h1 {
 }
 
 /* -----------------------------------------------
-   BOTONES FLUJO A
+   BOTONES FLUJO
 ------------------------------------------------ */
 .acciones-container {
     width: 90%;
@@ -142,59 +135,63 @@ header h1 {
     animation: fadeInAnim 0.25s ease;
 }
 
-/* Animación FadeIn */
 @keyframes fadeInAnim {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 /* -----------------------------------------------
-   CÁMARA
+   CÁMARA (🔥 FIX COMPLETO)
 ------------------------------------------------ */
 #cameraPreview {
     position: relative;
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
-    margin-bottom: 10px;
-    transition: box-shadow 0.25s;
-    height: 320px;
+    margin-bottom: 14px;
     background: #000;
+    height: auto;                /* 🔥 FIX */
+    min-height: 330px;           /* 🔥 FIX */
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-/* 🔥 NUEVO: Vista cuadrada para capturar FLEX y MOTO */
-.cuadrado-etiqueta video {
-    object-fit: cover;
+#cameraPreview video {
+    width: 100% !important;      /* 🔥 FIX */
+    height: 100% !important;     /* 🔥 FIX */
+    object-fit: cover !important;
 }
 
-/* Marco guía cuadrado */
+/* Marco guía cuadrado ajustado */
 .scanner-frame {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 65%;
-    height: 65%;
+    width: 70%;                  /* 🔥 más grande */
+    height: 70%;                 /* 🔥 más grande */
     transform: translate(-50%, -50%);
+    pointer-events: none;
 }
 
 .scanner-frame::before,
 .scanner-frame::after {
     content: "";
     position: absolute;
-    width: 35px;
-    height: 35px;
+    width: 36px;
+    height: 36px;
     border: 3px solid #00ff00;
 }
 
 .scanner-frame::before {
-    top: -3px;
-    left: -3px;
+    top: 0;
+    left: 0;
     border-right: none;
     border-bottom: none;
 }
 
 .scanner-frame::after {
-    bottom: -3px;
-    right: -3px;
+    bottom: 0;
+    right: 0;
     border-left: none;
     border-top: none;
 }
@@ -243,7 +240,6 @@ header h1 {
     border: 2px solid #ddd;
 }
 
-/* Modal visor */
 .visor-modal {
     display: none;
     position: fixed;
@@ -280,8 +276,6 @@ header h1 {
     flex: 1;
 }
 
-.info strong { display: block; }
-
 .direccion {
     font-size: 13px;
     color: #666;
@@ -317,7 +311,7 @@ header h1 {
 }
 
 /* -----------------------------------------------
-   BOTONES DE ESTADO
+   BOTONES ESTADO
 ------------------------------------------------ */
 .estado-btns {
     margin-top: 10px;
@@ -347,8 +341,6 @@ header h1 {
     padding: 14px;
     border-radius: 10px;
     color: white;
-    font-weight: bold;
-    text-align: center;
 }
 
 .btn-editar {
@@ -357,8 +349,6 @@ header h1 {
     padding: 12px;
     border-radius: 10px;
     color: white;
-    font-size: 15px;
-    font-weight: bold;
 }
 
 /* -----------------------------------------------
