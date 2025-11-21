@@ -2,16 +2,24 @@
 // VARIABLES
 // --------------------------------------------------
 let comprobantes = [];
+let historialCodigos = [];
 let choferNombre = "";
 let fechaRuta = "";
+let scanner = null;
 
-let isScannerActive = false;
 let cooldown = false;
+let isScannerActive = false;
 
-let historialCodigos = [];
 
-let codeReader = null;
-let videoElement = null;
+// --------------------------------------------------
+// OPCIONES ESCÁNER
+// --------------------------------------------------
+const html5QrConfig = {
+    fps: 12,
+    qrbox: { width: 250, height: 250 },
+    aspectRatio: 1.0,
+    rememberLastUsedCamera: true
+};
 
 
 // --------------------------------------------------
@@ -41,20 +49,18 @@ document.getElementById("btnIniciarRuta").onclick = () => {
 
 
 // --------------------------------------------------
-// DETECTAR TIPO (modo A: por tipo de código)
+// DETECTAR TIPO
 // --------------------------------------------------
 function detectarTipo(codigo, esQR) {
-    if (esQR) return "VENTAS ML FLEX";   // QR = FLEX
-
-    return "VENTAS ML MOTO";             // Barras = MOTO
+    if (esQR) return "VENTAS ML FLEX";
+    return "VENTAS ML MOTO";
 }
 
 
 // --------------------------------------------------
-// BOTÓN INICIAR ESCANEO
+// INICIAR ESCÁNER
 // --------------------------------------------------
 document.getElementById("scanBtn").onclick = iniciarScanner;
-
 
 async function iniciarScanner() {
 
@@ -63,93 +69,74 @@ async function iniciarScanner() {
 
     document.getElementById("accionesEscaneo").style.display = "block";
 
-    const cont = document.getElementById("listaComprobantes");
+    const preview = document.getElementById("cameraPreview");
+    preview.innerHTML = ""; // reset
 
-    // Crear contenedor
-    let camara = document.createElement("div");
-    camara.id = "cameraPreview";
-    camara.className = "camara-scan cuadrado-etiqueta";
-
-    cont.prepend(camara);
-
-    // Video
-    videoElement = document.createElement("video");
-    videoElement.setAttribute("autoplay", true);
-    videoElement.setAttribute("playsinline", true);
-    videoElement.setAttribute("muted", true);
-    videoElement.style.width = "100%";
-
-    camara.appendChild(videoElement);
-
-    // ZXING
-    const { BrowserMultiFormatReader, BrowserCodeReader } = window.ZXingBrowser;
-
-    codeReader = new BrowserMultiFormatReader({
-        delayBetweenScanAttempts: 180
-    });
+    scanner = new Html5Qrcode("cameraPreview");
 
     try {
-        const devices = await BrowserCodeReader.listVideoInputDevices();
-        if (!devices.length) throw new Error("No se detectó cámara.");
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras.length) {
+            alert("No se detectó cámara.");
+            return;
+        }
 
-        const camaraTrasera = devices[devices.length - 1].deviceId;
+        const camaraTrasera = cameras[cameras.length - 1].id;
 
-        await codeReader.decodeFromVideoDevice(
+        await scanner.start(
             camaraTrasera,
-            videoElement,
-            async (result, err) => {
-                if (!result) return;
-
-                const codigo = result.text;
-                const esQR = result.resultPoints?.length === 4; // ZXING indica QR cuando hay 4 esquinas
-
-                procesarDeteccion(codigo, esQR);
-            }
+            html5QrConfig,
+            onScanSuccess,
+            onScanFailure
         );
+
     } catch (err) {
-        console.error("Error al iniciar cámara:", err);
-        alert("No se pudo activar la cámara.");
+        console.error("Error al activar cámara:", err);
+        alert("No se pudo activar la cámara");
     }
 }
 
 
 // --------------------------------------------------
-// PROCESAR DETECCIÓN
+// CALLBACKS DE ESCANEO
 // --------------------------------------------------
-async function procesarDeteccion(codigo, esQR) {
+async function onScanSuccess(decodedText, decodedResult) {
 
     if (cooldown) return;
-
     cooldown = true;
-    setTimeout(() => (cooldown = false), 700);
+    setTimeout(() => cooldown = false, 700);
 
-    triggerScanEffect(codigo);
+    const esQR = decodedResult.result.format.formatName === "QR_CODE";
 
-    // Captura miniatura cuadrada
-    const frameBase64 = capturarFrameRecortado();
+    triggerScanEffect(decodedText);
 
-    let textoOCR = "";
+    // Miniatura cuadrada
+    const miniatura = await capturarMiniatura();
+
+    // Dirección solo en QR / FLEX
     let direccion = "";
-
-    // Solo FLEX usa OCR. Moto NO tiene dirección arriba del QR.
     if (esQR) {
-        textoOCR = await extraerOCR(frameBase64);
+        const textoOCR = await extraerOCR(miniatura);
         direccion = parseDireccion(textoOCR);
     }
 
-    agregarComprobante(codigo, frameBase64, direccion, esQR);
+    agregarComprobante(decodedText, miniatura, direccion, esQR);
+}
+
+function onScanFailure(error) {
+    // ignorar errores pequeños
 }
 
 
 // --------------------------------------------------
-// CAPTURA FRAME — RECORTE CUADRADO
+// MINIATURA
 // --------------------------------------------------
-function capturarFrameRecortado() {
-    if (!videoElement) return "";
+async function capturarMiniatura() {
+    const video = document.querySelector("#cameraPreview video");
+    if (!video) return "";
 
-    const w = videoElement.videoWidth;
-    const h = videoElement.videoHeight;
-
+    const w = video.videoWidth;
+    const h = video.videoHeight;
     const side = Math.min(w, h);
 
     const sx = (w - side) / 2;
@@ -160,19 +147,14 @@ function capturarFrameRecortado() {
     canvas.height = 500;
 
     const ctx = canvas.getContext("2d");
-
-    ctx.drawImage(
-        videoElement,
-        sx, sy, side, side,
-        0, 0, 500, 500
-    );
+    ctx.drawImage(video, sx, sy, side, side, 0, 0, 500, 500);
 
     return canvas.toDataURL("image/jpeg");
 }
 
 
 // --------------------------------------------------
-// OCR DIRECCIÓN FLEX
+// OCR DIRECCIÓN (FLEX)
 // --------------------------------------------------
 async function extraerOCR(imgBase64) {
     try {
@@ -185,7 +167,6 @@ async function extraerOCR(imgBase64) {
 }
 
 function parseDireccion(texto) {
-
     if (!texto) return "";
 
     let lineas = texto
@@ -215,13 +196,13 @@ function triggerScanEffect(codigo) {
 
     const duplicado = historialCodigos.includes(codigo);
 
-    navigator.vibrate?.(duplicado ? 320 : 120);
+    navigator.vibrate?.(duplicado ? 350 : 150);
 
     cam.classList.add(duplicado ? "scan-duplicado" : "scan-ok");
 
     if (duplicado) mostrarMensajeFlotante("DUPLICADO");
 
-    setTimeout(() => cam.classList.remove("scan-ok", "scan-duplicado"), 500);
+    setTimeout(() => cam.classList.remove("scan-ok", "scan-duplicado"), 450);
 }
 
 function mostrarMensajeFlotante(texto) {
@@ -276,15 +257,13 @@ function actualizarContador() {
 
 
 // --------------------------------------------------
-// RENDER LISTA
+// RENDER DE LISTA
 // --------------------------------------------------
 function renderComprobantes() {
 
     const cont = document.getElementById("listaComprobantes");
-    const cam = document.getElementById("cameraPreview");
 
     cont.innerHTML = "";
-    if (cam) cont.prepend(cam);
 
     comprobantes.forEach((c, i) => {
 
@@ -296,20 +275,19 @@ function renderComprobantes() {
             ? `<span class="domicilio-tag">MISMO DOMICILIO – SE PAGA 1</span>`
             : "";
 
-        const botones =
-            c.estado === ""
-                ? `
-                <div class="estado-btns">
-                    <button onclick="setEstado(${i}, 'ENTREGADO')" class="btn-entregado">Entregado</button>
-                    <button onclick="setEstado(${i}, 'AUSENTE')" class="btn-ausente">Ausente</button>
-                    <button onclick="setEstado(${i}, 'CANCELADO')" class="btn-cancelado">Cancelado</button>
-                    <button onclick="setEstado(${i}, 'DEMORADO')" class="btn-demorado">Demorado</button>
-                </div>`
-                : `
-                <div class="estado-btns">
-                    <button class="btn-estado-activo">${c.estado}</button>
-                    <button class="btn-editar" onclick="editarEstado(${i})">Editar</button>
-                </div>`;
+        const botones = c.estado === ""
+            ? `
+            <div class="estado-btns">
+                <button onclick="setEstado(${i}, 'ENTREGADO')" class="btn-entregado">Entregado</button>
+                <button onclick="setEstado(${i}, 'AUSENTE')" class="btn-ausente">Ausente</button>
+                <button onclick="setEstado(${i}, 'CANCELADO')" class="btn-cancelado">Cancelado</button>
+                <button onclick="setEstado(${i}, 'DEMORADO')" class="btn-demorado">Demorado</button>
+            </div>`
+            : `
+            <div class="estado-btns">
+                <button class="btn-estado-activo">${c.estado}</button>
+                <button onclick="editarEstado(${i})" class="btn-editar">Editar</button>
+            </div>`;
 
         const box = document.createElement("div");
         box.className = "comprobante fadeIn";
@@ -328,7 +306,6 @@ function renderComprobantes() {
                 </div>
 
                 <button onclick="eliminarComprobante(${i})" class="btn-eliminar">🗑️</button>
-
             </div>
 
             ${botones}
@@ -345,7 +322,7 @@ function renderComprobantes() {
 
 
 // --------------------------------------------------
-// MINIATURA → MODAL
+// MINIATURA MODAL
 // --------------------------------------------------
 function verMiniatura(img) {
     document.getElementById("visorModal").style.display = "flex";
@@ -378,29 +355,18 @@ function eliminarComprobante(i) {
 
 
 // --------------------------------------------------
-// BOTONES
-// --------------------------------------------------
-document.getElementById("btnFinalizarEscaneo").onclick = detenerCamara;
-document.getElementById("btnAgregarMas").onclick = iniciarScanner;
-
-
-// --------------------------------------------------
-// DETENER CÁMARA
+// DETENER CAMARA
 // --------------------------------------------------
 function detenerCamara() {
-    if (codeReader) {
-        try { codeReader.reset(); } catch {}
+    if (scanner) {
+        scanner.stop().catch(() => {});
     }
-
     isScannerActive = false;
-
-    const cam = document.getElementById("cameraPreview");
-    if (cam) cam.remove();
 }
 
 
 // --------------------------------------------------
-// QR
+// QR FINAL
 // --------------------------------------------------
 document.getElementById("generarQR").onclick = () => {
     detenerCamara();
